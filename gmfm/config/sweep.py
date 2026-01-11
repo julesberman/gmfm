@@ -1,13 +1,13 @@
 SWEEP = {
-    "dataset": "adv",
+    "dataset": "turb",
     "net.size": "m",
     "optimizer.pbar_delay": "200",
-    "optimizer.iters": "100_000",
+    "optimizer.iters": "200_000",
     "loss.relative": "True",
 
-    "loss.bandwidths": "[16.0], [32.0, 16.0, 8.0], [8.0, 4.0, 2.0]",
+    "loss.bandwidths": "[32.0, 16.0, 8.0], [32.0, 16.0, 4.0, 1.0, 0.1], [20.0, 16.0, 12.0], [24.0], [16.0], [8.0], [4.0], [1.0]",
     "loss.basis": "rff",
-    "loss.n_functions": "5_000, 200_000",
+    "loss.n_functions": "250_000",
     "data.sub_x": "1"
 
     # "loss.sigma": "0.0, 5e-2",
@@ -20,7 +20,7 @@ def get_sweep():
 
 
 SLURM_CONFIG_M = {
-    "timeout_min": 60 * 16,
+    "timeout_min": 60 * 26,
     "cpus_per_task": 16,
     "mem_gb": 500,
     "gres": "gpu:h100:1",

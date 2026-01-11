@@ -23,19 +23,18 @@ def _sample_checkerboard(n, rng=None):
     u = rng.random((n, 2))
     x = -1.0 + (i + u[:, 0]) * 0.5
     y = -1.0 + (j + u[:, 1]) * 0.5
-    return np.stack([x, y], axis=1)
+    # 0..7 (row-major over kept squares)
+    cls = 2 * j + (i >> 1)
+    return np.c_[x, y], cls
 
 
-def _sample_multimodal_gaussian(n, rng, num_modes=6, radius=2.0, sigma=0.5):
-    # 8 Gaussians on a circle
+def _sample_multimodal_gaussian(n, rng=None, num_modes=6, radius=1.0, sigma=0.1):
+    rng = np.random.default_rng(rng)
     angles = np.linspace(0, 2 * math.pi, num_modes, endpoint=False)
-    means = np.stack(
-        [radius * np.cos(angles), radius * np.sin(angles)], axis=1)
-    comps = rng.integers(0, num_modes, size=n)
-    mean = means[comps]
-    noise = rng.normal(0, sigma, size=(n, 2))
-    data = mean + noise
-    return data
+    means = np.c_[radius * np.cos(angles), radius * np.sin(angles)]
+    cls = rng.integers(0, num_modes, size=n)          # 0..num_modes-1
+    x = means[cls] + rng.normal(0, sigma, size=(n, 2))
+    return x, cls
 
 
 def get_2d_dataset(name: str, n_samples: int = 50_000, seed: int | None = None):

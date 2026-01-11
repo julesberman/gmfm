@@ -7,6 +7,7 @@ from gmfm.config.config import Config
 from gmfm.data.adv import get_adv_data
 from gmfm.data.lanl import get_lanl_clean
 from gmfm.data.lz9 import get_lz9_data
+from gmfm.data.turb import get_turb_samples
 from gmfm.data.wave import get_wave_random_media
 from gmfm.utils.tools import normalize, print_ndarray, print_stats, pshape
 
@@ -45,6 +46,10 @@ def get_dataset(cfg: Config, key):
     elif problem == "lz9":
         t_eval = np.linspace(0, 20.0, n_t)
         x_data = get_lz9_data(n_samples, t_eval, skey)
+    elif problem == "turb":
+        x_data = get_turb_samples(n_samples)
+        x_data = x_data[:, ::sub_t, ::sub_x, ::sub_x]
+        x_data = x_data[..., :1]
 
     if cfg.data.normalize:
         x_data, (shift, scale) = normalize(x_data, method=norm_method, axis=-1)
