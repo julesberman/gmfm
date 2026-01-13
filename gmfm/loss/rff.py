@@ -1,3 +1,5 @@
+from functools import partial
+
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -29,19 +31,29 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
     k1, k2, k3 = jax.random.split(key, num=3)
 
     bandwidths = list(cfg.loss.bandwidths)
+    omega_rho = cfg.loss.omega_rho
     n_functions = cfg.loss.n_functions
     kpn = jax_key_to_np(k1)
     stride = int(cfg.loss.stride)
-    basis = str(cfg.loss.basis).lower()
 
-    # fixed_params = make_rff_params(kpn, n_functions, D, bandwidths)
+    sigma_t = []
+    t_flat_data = rearrange(x_flat, 'N T D -> T N D')
+    for xt in t_flat_data:
+        kk, k2 = jax.random.split(k2)
+        ss = median_heuristic_sigma(xt, kk)
+        sigma_t.append(ss)
+    sigma_t = np.asarray(sigma_t)
+    print_ndarray(sigma_t)
 
-    if basis == "rff":
-        _, _, D = x_flat.shape
-        kpn = jax_key_to_np(k1)
+    _, _, D = x_flat.shape
+    kpn = jax_key_to_np(k1)
+
+    if omega_rho == 'gauss':
         fixed_params = make_rff_params(
             kpn, n_functions, D, bandwidths)  # omega: (M,D)
-
+    if omega_rho == 'orf':
+        fixed_params = make_rff_params_orf(
+            kpn, n_functions, D, bandwidths)  # omega: (M,D)
     # ---- precompute mu_t for all times: mu[t] = E[phi(X_t)] ----
     pbar_mu = tqdm(range(T), desc='precompute moments', colour="#306EFF")
     mu_list = []
@@ -66,15 +78,7 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
     print_stats(lhs_data)
     print_stats(fixed_params)
 
-    median_sigmas = []
-    t_flat_data = rearrange(x_flat, 'N T D -> (N T) D')
-    for _ in range(3):
-        kk, k2 = jax.random.split(k2)
-        ss = median_heuristic_sigma(t_flat_data, kk)
-        median_sigmas.append(ss)
-    print_ndarray(median_sigmas)
-
-    return np.asarray(mu), np.asarray(lhs_data), np.asarray(fixed_params)
+    return np.asarray(mu), np.asarray(lhs_data), np.asarray(fixed_params), np.asarray(sigma_t)
 
 
 def get_dt_spline(mu_data, t_data, method):
@@ -160,6 +164,13 @@ def make_rff_params(
     sigma_per = np.repeat(sigmas, repeats=counts)  # (M_total,)
     omega = base / sigma_per[:, None]              # (M_total, D)
 
+    return omega
+
+
+@partial(jax.jit, static_argnames=("M_total", "D"))
+def make_rff_params_jnp(key, M_total: int, D: int, sigma):
+    base = jax.random.normal(key, (M_total, D))  # (M_use, D)
+    omega = base / sigma
     return omega
 
 
@@ -306,3 +317,99 @@ def rff_laplace_phi_chunked(x, omega, *, chunk: int = 16384):
 
     out = lax.fori_loop(0, n, body, out)
     return out[: 2 * M]
+
+
+def grad_phi_weights(x_t, omegas, eps=1e-8):
+    """
+    Returns weights w of shape (2M,) where
+      w_k = 1 / (E[||∇phi_k||^2] + eps)
+    for paired tests phi_cos, phi_sin.
+    """
+    # (B, M): dot products ω^T x
+    proj = x_t @ omegas.T
+
+    # (B, M)
+    sinp = jnp.sin(proj)
+    cosp = jnp.cos(proj)
+
+    # (M,)
+    omega_norm2 = jnp.sum(omegas**2, axis=-1)
+
+    # E[||∇cos||^2] = E[sin^2(proj)] * ||ω||^2
+    # E[||∇sin||^2] = E[cos^2(proj)] * ||ω||^2
+    s2_cos = jnp.mean(sinp**2, axis=0) * omega_norm2  # (M,)
+    s2_sin = jnp.mean(cosp**2, axis=0) * omega_norm2  # (M,)
+
+    # Stack to match your (2M,) feature order.
+    # If your features are [cos_1..cos_M, sin_1..sin_M], do:
+    s2 = jnp.concatenate([s2_cos, s2_sin], axis=0)    # (2M,)
+
+    w = 1.0 / (s2 + eps)
+    return w
+
+
+def make_rff_params_orf(
+    key,
+    M_total: int,
+    D: int,
+    sigmas,
+):
+    """
+    JAX ORF version of make_rff_params (same API, supports multiple bandwidths),
+    returning a NumPy array at the end.
+
+    ORF block construction (rows are frequencies):
+        W = (1/sigma) * S Q
+    where:
+        Q ~ Haar(O(D))  (via jax.random.orthogonal)
+        S = diag(s_1,...,s_D), s_i ~ chi_D i.i.d.  (row-wise scaling)
+    """
+
+    # ---- parse sigmas & split counts exactly like your NumPy version ----
+    sigmas = np.atleast_1d(np.asarray(sigmas, dtype=np.float32))
+    if sigmas.ndim != 1:
+        raise ValueError("sigmas must be a scalar or 1D array-like.")
+    L = int(sigmas.shape[0])
+
+    M_base = M_total // L
+    rem = M_total - M_base * L
+    counts = (M_base + (np.arange(L) < rem).astype(np.int32)
+              ).astype(int)  # sums to M_total
+
+    @partial(jax.jit, static_argnames=("M",))
+    def _orf_for_sigma(k, M: int, sigma: float) -> jax.Array:
+        """Generate (M, D) ORF frequencies for a single sigma."""
+        if M == 0:
+            return jnp.empty((0, D), dtype=jnp.float32)
+
+        B = (M + D - 1) // D  # number of D-row blocks
+
+        kQ, kZ = jax.random.split(k, 2)
+
+        # Q: (B, D, D) Haar-orthogonal blocks
+        Q = jax.random.orthogonal(kQ, n=D, shape=(B,), dtype=jnp.float32)
+
+        # s_i ~ chi_D: s = sqrt(sum_{k=1..D} z_k^2), z_k ~ N(0,1)
+        Z = jax.random.normal(kZ, shape=(B, D, D), dtype=jnp.float32)
+        s = jnp.sqrt(jnp.sum(Z * Z, axis=-1))  # (B, D)
+
+        # Row-scale Q by s and divide by sigma: W[b, i, :] = s[b, i] * Q[b, i, :] / sigma
+        W = (Q * s[..., :, None]) / jnp.float32(sigma)  # (B, D, D)
+
+        # Flatten blocks into rows and truncate to M
+        return W.reshape((B * D, D))[:M]
+
+    # ---- generate each sigma-group with independent keys, then concatenate ----
+    keys = jax.random.split(key, L) if L > 0 else jnp.empty(
+        (0,), dtype=key.dtype)
+
+    parts = []
+    for k_l, sigma_l, cnt_l in zip(keys, sigmas, counts):
+        if cnt_l > 0:
+            parts.append(_orf_for_sigma(k_l, int(cnt_l), float(sigma_l)))
+
+    omega_jax = jnp.concatenate(parts, axis=0) if parts else jnp.empty(
+        (0, D), dtype=jnp.float32)
+
+    # ---- return NumPy on host ----
+    return np.asarray(jax.device_get(omega_jax), dtype=np.float32)

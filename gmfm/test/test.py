@@ -1,10 +1,12 @@
 
 import numpy as np
 
+import gmfm.io.result as R
 from gmfm.config.config import Config
 from gmfm.test.integrate import sample_model
+from gmfm.test.metrics import compute_metrics
 from gmfm.test.plot import plot_sde, plot_spde
-from gmfm.utils.tools import jax_key_to_np, pshape
+from gmfm.utils.tools import jax_key_to_np, pshape, unnormalize
 
 
 def run_test(cfg: Config, apply_fn, opt_params, x_data, key):
@@ -27,11 +29,21 @@ def run_test(cfg: Config, apply_fn, opt_params, x_data, key):
 
     x_pred = np.nan_to_num(
         x_pred, nan=0.0, posinf=1e9, neginf=-1e9)
+    high_dim = x_true.ndim > 3
 
     pshape(x_true, x_pred)
     if plot:
-        if x_true.ndim > 3:
+        if high_dim:
             plot_spde(cfg, x_pred, x_true)
         else:
             plot_sde(cfg, x_pred, x_true)
+
+    if cfg.test.metrics:
+
+        stats = R.RESULT['normalize_values']
+        x_pred = unnormalize(x_pred, stats)
+        x_true = unnormalize(x_data, stats)
+        pshape(x_true, x_pred)
+        compute_metrics(cfg, x_pred, x_true)
+
     return x_pred

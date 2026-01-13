@@ -66,9 +66,11 @@ class Loss:
     reg_kin: float = 0.0
     relative: bool = True
     stride: int = 1
-    basis: str = 'rff'
-    dt: str = 'akima'
+    dt: str = 'cubic'
     nt_interp: None | int = None
+    normalize: None | str = None
+    resample: bool = False
+    omega_rho: str = 'gauss'  # gauss, orf
     # method of approximation
     # 'cubic': C1 cubic splines (aka local splines)
     # 'cubic2': C2 cubic splines. Can also pass kwarg bc_type, same as scipy.interpolate.CubicSpline
@@ -84,6 +86,7 @@ class Test:
     n_plot: int = 16
     save_trajectories: bool = False
     plot: bool = True
+    metrics: bool = True
 
 
 @dataclass
@@ -155,7 +158,7 @@ adv_cfg = Config(
               normalize=True, norm_method='-11'),
     sample=Sample(bs_n=256, bs_o=-1, replace=False),
     loss=Loss(n_functions=200_000, relative=True,
-              bandwidths=[8.0, 4.0])
+              bandwidths=[8.0])
 
 )
 cs.store(name="adv", node=adv_cfg)
@@ -164,11 +167,11 @@ cs.store(name="adv", node=adv_cfg)
 lz9_cfg = Config(
     dataset="lz9",
     net=Network(arch='mlp'),
-    optimizer=Optimizer(pbar_delay=100),
+    optimizer=Optimizer(pbar_delay=20),
     data=Data(n_samples=25_000, n_t=64, normalize=True, norm_method='-11'),
-    sample=Sample(bs_n=25_000, bs_o=50_000),
+    sample=Sample(bs_n=10_000, bs_o=-1),
     loss=Loss(n_functions=50_000, relative=True,
-              bandwidths=[5.0, 1.0, 0.5, 0.1]),
+              bandwidths=[2.0, 1.0, 0.5, 0.1, 0.05]),
     test=Test(n_samples=20_000)
 
 )
@@ -177,7 +180,7 @@ cs.store(name="lz9", node=lz9_cfg)
 
 turb_cfg = Config(
     dataset="turb",
-    data=Data(sub_x=1, sub_t=1, n_samples=1024,
+    data=Data(sub_x=1, sub_t=1, n_samples=2048,
               normalize=True, norm_method='-11'),
     sample=Sample(bs_n=256, bs_o=-1, replace=False),
     loss=Loss(n_functions=200_000, relative=True,

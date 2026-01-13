@@ -47,9 +47,7 @@ def get_dataset(cfg: Config, key):
         t_eval = np.linspace(0, 20.0, n_t)
         x_data = get_lz9_data(n_samples, t_eval, skey)
     elif problem == "turb":
-        x_data = get_turb_samples(n_samples)
-        x_data = x_data[:, ::sub_t, ::sub_x, ::sub_x]
-        x_data = x_data[..., :1]
+        x_data = get_turb_samples(n_samples, only_vort=True)
 
     if cfg.data.normalize:
         x_data, (shift, scale) = normalize(x_data, method=norm_method, axis=-1)

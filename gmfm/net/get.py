@@ -2,7 +2,6 @@ from functools import partial
 
 import jax
 import numpy as np
-
 from gmfm.config.config import Config, Network
 from gmfm.net.mlp import DNN
 from gmfm.net.unet import UNet
@@ -54,11 +53,12 @@ def get_unet_size(size, out_channels, emb_features, n_classes=1):
 
 def get_network(cfg: Config, dataloader, key):
 
-    xt_batch, phi_batch, lhs_batch, time, dt = next(iter(dataloader))
+    batch = next(iter(dataloader))
+    xt_batch, time = batch[:2]
     out_channels = xt_batch.shape[-1]
     time = np.ones((xt_batch.shape[0], 1))
 
-    pshape(xt_batch, phi_batch, lhs_batch, time, dt, title='dataloader sample')
+    pshape(*batch, title='dataloader sample')
 
     net = get_arch(cfg.net, out_channels)
     params_init = net.init(key, xt_batch, time, None)
