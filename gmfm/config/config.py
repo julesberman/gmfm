@@ -180,7 +180,7 @@ cs.store(name="lz9", node=lz9_cfg)
 
 turb_cfg = Config(
     dataset="turb",
-    data=Data(sub_x=1, sub_t=1, n_samples=2048,
+    data=Data(sub_x=1, sub_t=1, n_samples=4096,
               normalize=True, norm_method='-11'),
     sample=Sample(bs_n=256, bs_o=-1, replace=False),
     loss=Loss(n_functions=200_000, relative=True,
