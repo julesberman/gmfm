@@ -11,6 +11,9 @@ from gmfm.data.turb import get_turb_samples
 from gmfm.data.wave import get_wave_random_media
 from gmfm.utils.tools import normalize, print_ndarray, print_stats, pshape
 
+from gmfm.data.vlasov2 import get_vtwo_data, get_vbump_data
+from einops import rearrange 
+
 
 def get_dataset(cfg: Config, key):
 
@@ -48,7 +51,19 @@ def get_dataset(cfg: Config, key):
         x_data = get_lz9_data(n_samples, t_eval, skey)
     elif problem == "turb":
         x_data = get_turb_samples(n_samples, only_vort=True)
+    elif problem == "vtwo":
+        x_data = get_vtwo_data()
+        x_data = rearrange(x_data, 'M T N D -> M N T D')
+        print(x_data.shape)
+        x_data = x_data[3]
+        x_data = x_data[:, ::sub_t]
+    elif problem == "vbump":
+        x_data = get_vbump_data()
+        x_data = rearrange(x_data, 'M T N D -> M N T D')
+        x_data = x_data[3]
+        x_data = x_data[:, ::sub_t]
 
+        
     if cfg.data.normalize:
         x_data, (shift, scale) = normalize(x_data, method=norm_method, axis=-1)
         print_ndarray(shift, title='stats')

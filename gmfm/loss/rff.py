@@ -17,7 +17,8 @@ from gmfm.utils.tools import (
     print_stats,
     pshape,
 )
-
+import gmfm.io.result as R
+from scipy.interpolate import make_smoothing_spline
 
 def get_phi_params(cfg: Config, x_data, t_data, key):
 
@@ -30,7 +31,7 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
 
     k1, k2, k3 = jax.random.split(key, num=3)
 
-    bandwidths = list(cfg.loss.bandwidths)
+
     omega_rho = cfg.loss.omega_rho
     n_functions = cfg.loss.n_functions
     kpn = jax_key_to_np(k1)
@@ -44,6 +45,13 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
         sigma_t.append(ss)
     sigma_t = np.asarray(sigma_t)
     print_ndarray(sigma_t)
+
+    if cfg.loss.b_min > 0:
+        bandwidths = np.exp(np.linspace(np.log(cfg.loss.b_min), np.log(cfg.loss.b_min), cfg.loss.n_bands))
+    else: 
+        bandwidths = np.asarray(list(cfg.loss.bandwidths))
+
+    R.RESULT['bandwidths'] = bandwidths
 
     _, _, D = x_flat.shape
     kpn = jax_key_to_np(k1)
@@ -69,7 +77,14 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
     mu = np.stack(mu_list, axis=0)  # (T, 2M)
 
     dt_method = cfg.loss.dt
-    if dt_method == 'fd':
+
+    if dt_method == 'sm_spline':
+        spl = make_smoothing_spline(t_data, mu, lam=5e-5)
+        lhs_data = spl.derivative()(t_data)      
+    elif dt_method == 'sm_fd':
+        mu_s = gaussian_filter1d(mu, sigma=2.0, axis=0, mode="nearest")     
+        lhs_data = np.gradient(mu_s, t_data, axis=0, edge_order=2)
+    elif dt_method == 'fd':
         lhs_data = get_dt_finite_difference(mu, t_data, stride)
     else:
         lhs_data = get_dt_spline(mu, t_data, dt_method)

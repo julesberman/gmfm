@@ -47,7 +47,13 @@ def get_dataloader(
         def iterator():
             for _ in range(steps+100):
                 t_idx = rng.integers(0, T)
-                idx_n = rng.choice(N, size=bs_n, replace=False)
+
+
+                if bs_n > 0:
+                    idx_n = rng.choice(N, size=bs_n, replace=False)
+                    xt_batch = x_data[idx_n, t_idx, :]
+                elif bs_o == -1:
+                    xt_batch = x_data[:, t_idx]
 
                 if bs_o > 0:
                     idx_o = rng.choice(n_functions, size=bs_o, replace=False)
@@ -58,9 +64,9 @@ def get_dataloader(
                     phi_batch = phi_data[:]
                     lhs_batch = lhs_data[t_idx, :]
 
-                xt_batch = x_data[idx_n, t_idx, :]
+       
                 t0 = np.asarray(t_data[t_idx]).reshape(1, 1)
-                t = np.repeat(t0, bs_n, axis=0)
+                t = np.repeat(t0, xt_batch.shape[0], axis=0)
 
                 yield xt_batch, t, phi_batch, lhs_batch
 

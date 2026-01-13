@@ -13,3 +13,8 @@ scipy
 seaborn
 tensorflow_datasets
 tqdm
+jax_cfd
+interpax
+ipython
+imageio[ffmpeg]
+hydra-submitit-launcher 
