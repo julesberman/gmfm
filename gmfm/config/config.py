@@ -39,6 +39,7 @@ class Data:
     n_x: int = -1
     n_samples: int = -1
     alpha: float = 1.0
+    has_mu: bool = False
 
 
 @dataclass
@@ -200,9 +201,8 @@ vtwo_cfg = Config(
     optimizer=Optimizer(pbar_delay=20),
     data=Data(normalize=True, norm_method='-11', sub_t=10),
     sample=Sample(bs_n=-1, bs_o=-1),
-    loss=Loss(n_functions=100_000, relative=True,
-              bandwidths=[1.0, 0.8, 0.5, 0.1, 0.05, 0.01]),
-    test=Test(n_samples=20_000)
+    loss=Loss(n_functions=100_000, relative=True, b_min=0.005, b_max=1.0),
+    test=Test(n_samples=25_000)
 
 )
 cs.store(name="vtwo", node=vtwo_cfg)

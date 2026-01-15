@@ -19,15 +19,20 @@ def make_gmfm_loss(cfg: Config, apply_fn):
     reg_kin = cfg.loss.reg_kin
     relative = cfg.loss.relative
     normalize = cfg.loss.normalize
+    has_mu = cfg.data.has_mu
 
     grad_fn = rff_grad_dot_v
     lap_fn = rff_laplace_phi
 
-    def loss_fn(params, x_t, t, omegas, lhs, key):
+    def loss_fn(params, x_t, t, omegas, lhs, mu, key):
         final_loss = 0.0
         aux = {}
 
-        v_t = apply_fn(params, x_t, t)  # (B, D)
+        if has_mu:
+            v_t = apply_fn(params, x_t, t, mu)
+        else:
+            v_t = apply_fn(params, x_t, t, None)
+            
         v_t = rearrange(v_t, 'N ... -> N (...)')
         x_t = rearrange(x_t, 'N ... -> N (...)')
 

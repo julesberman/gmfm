@@ -7,6 +7,8 @@ from gmfm.net.mlp import DNN
 from gmfm.net.unet import UNet
 from gmfm.utils.tools import pshape
 
+import jax.numpy as jnp
+
 
 def get_arch(net_cfg: Network, out_channels):
 
@@ -63,8 +65,12 @@ def get_network(cfg: Config, dataloader, key):
     net = get_arch(cfg.net, out_channels)
     params_init = net.init(key, xt_batch, time, None)
 
-    def apply_fn(params, xt, t):
-        return net.apply(params, xt, t, None)
+    def apply_fn(params, xt, t, mu):
+        if mu is None:
+            return net.apply(params, xt, t, None)
+        else:
+            mu_t = jnp.concatenate([mu, t], axis=0)
+            return net.apply(params, xt, t, mu_t)
 
     param_count = sum(x.size for x in jax.tree_util.tree_leaves(params_init))
     print(f"n_params {param_count:,}")

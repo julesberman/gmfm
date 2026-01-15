@@ -11,8 +11,8 @@ from gmfm.data.turb import get_turb_samples
 from gmfm.data.wave import get_wave_random_media
 from gmfm.utils.tools import normalize, print_ndarray, print_stats, pshape
 
-from gmfm.data.vlasov2 import get_vtwo_data, get_vbump_data
-from einops import rearrange 
+from gmfm.data.hoam import get_hoam_data
+from einops import rearrange
 
 
 def get_dataset(cfg: Config, key):
@@ -26,6 +26,7 @@ def get_dataset(cfg: Config, key):
     n_t = cfg.data.n_t
     n_x = cfg.data.n_x
     norm_method = cfg.data.norm_method
+    mu_data = None
 
     skey, key = jax.random.split(key)
     shift, scale = 0.0, 1.0
@@ -39,7 +40,6 @@ def get_dataset(cfg: Config, key):
         x_data = x_data[:, ::sub_t, ::sub_x, ::sub_x, None]
 
     elif problem == "adv":
-
         x_data = get_adv_data(n_samples, sub_t, sub_x)
 
     elif problem == "lanl":
@@ -52,18 +52,18 @@ def get_dataset(cfg: Config, key):
     elif problem == "turb":
         x_data = get_turb_samples(n_samples, only_vort=True)
     elif problem == "vtwo":
-        x_data = get_vtwo_data()
+        path = "/scratch/jmb1174/data_hoam/sde/vtwo.pkl"
+        x_data, mu_data = get_hoam_data(path)
         x_data = rearrange(x_data, 'M T N D -> M N T D')
-        print(x_data.shape)
         x_data = x_data[3]
         x_data = x_data[:, ::sub_t]
     elif problem == "vbump":
-        x_data = get_vbump_data()
+        path = "/scratch/jmb1174/data_hoam/sde/vbump.pkl"
+        x_data, mu_data = get_hoam_data(path)
         x_data = rearrange(x_data, 'M T N D -> M N T D')
         x_data = x_data[3]
         x_data = x_data[:, ::sub_t]
 
-        
     if cfg.data.normalize:
         x_data, (shift, scale) = normalize(x_data, method=norm_method, axis=-1)
         print_ndarray(shift, title='stats')
@@ -76,7 +76,11 @@ def get_dataset(cfg: Config, key):
     pshape(x_data)
     print_stats(x_data)
 
-    return x_data, t_data
+    if mu_data is not None:
+        pshape(mu_data)
+        print_stats(mu_data)
+
+    return x_data, t_data, mu_data
 
 
 def extract_well_params(well_data):

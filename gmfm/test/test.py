@@ -8,8 +8,10 @@ from gmfm.test.metrics import compute_metrics
 from gmfm.test.plot import plot_sde, plot_spde
 from gmfm.utils.tools import jax_key_to_np, pshape, unnormalize
 
+import jax.numpy as jnp
 
-def run_test(cfg: Config, apply_fn, opt_params, x_data, key):
+
+def run_test(cfg: Config, apply_fn, opt_params, x_data, cur_mu, key, label=''):
 
     plot = cfg.test.plot
     n_samples = cfg.test.n_samples
@@ -24,8 +26,17 @@ def run_test(cfg: Config, apply_fn, opt_params, x_data, key):
     x_true = x_data[n_idx]
     x_0 = x_true[:, 0]
     T = x_true.shape[1]
+
+    if cfg.data.has_mu:
+        def apply_fn_mu(params, xt, t):
+            mu = jnp.ones_like(t)*cur_mu
+            return apply_fn(params, xt, t, mu)
+    else:
+        def apply_fn_mu(params, xt, t):
+            return apply_fn(params, xt, t, None)
+
     x_pred = sample_model(
-        cfg, apply_fn, opt_params, x_0, sigma, T, key)
+        cfg, apply_fn_mu, opt_params, x_0, sigma, T, key)
 
     x_pred = np.nan_to_num(
         x_pred, nan=0.0, posinf=1e9, neginf=-1e9)

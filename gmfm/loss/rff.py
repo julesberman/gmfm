@@ -6,19 +6,21 @@ import numpy as np
 from einops import rearrange
 from interpax import approx_df
 from jax import jit, lax, vmap
+from scipy.interpolate import make_smoothing_spline
+from scipy.ndimage import gaussian_filter1d
 from tqdm.auto import tqdm
 
+import gmfm.io.result as R
 from gmfm.config.config import Config
 from gmfm.loss.bandwidth import median_heuristic_sigma
 from gmfm.utils.tools import (
     batchvmap,
     jax_key_to_np,
     print_ndarray,
-    print_stats,
+    print_stats, 
     pshape,
 )
-import gmfm.io.result as R
-from scipy.interpolate import make_smoothing_spline
+
 
 def get_phi_params(cfg: Config, x_data, t_data, key):
 
@@ -37,19 +39,20 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
     kpn = jax_key_to_np(k1)
     stride = int(cfg.loss.stride)
 
-    sigma_t = []
-    t_flat_data = rearrange(x_flat, 'N T D -> T N D')
-    for xt in t_flat_data:
-        kk, k2 = jax.random.split(k2)
-        ss = median_heuristic_sigma(xt, kk)
-        sigma_t.append(ss)
-    sigma_t = np.asarray(sigma_t)
-    print_ndarray(sigma_t)
+    # sigma_t = []
+    # t_flat_data = rearrange(x_flat, 'N T D -> T N D')
+    # for xt in t_flat_data:
+    #     kk, k2 = jax.random.split(k2)
+    #     ss = median_heuristic_sigma(xt, kk)
+    #     sigma_t.append(ss)
+    # sigma_t = np.asarray(sigma_t)
+    # print_ndarray(sigma_t)
 
     if cfg.loss.b_min > 0:
-        bandwidths = np.exp(np.linspace(np.log(cfg.loss.b_min), np.log(cfg.loss.b_min), cfg.loss.n_bands))
+        bandwidths = np.exp(np.linspace(np.log(cfg.loss.b_min), np.log(cfg.loss.b_max), cfg.loss.n_bands))
     else: 
         bandwidths = np.asarray(list(cfg.loss.bandwidths))
+    print_ndarray(bandwidths)
 
     R.RESULT['bandwidths'] = bandwidths
 
@@ -93,7 +96,7 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
     print_stats(lhs_data)
     print_stats(fixed_params)
 
-    return np.asarray(mu), np.asarray(lhs_data), np.asarray(fixed_params), np.asarray(sigma_t)
+    return np.asarray(mu), np.asarray(lhs_data), np.asarray(fixed_params), bandwidths
 
 
 def get_dt_spline(mu_data, t_data, method):

@@ -9,12 +9,14 @@ def get_dataloader(
     phi_data,
     lhs_data,
     t_data,
+    mu_data,
     sigmas
 ):
     x_data = np.asarray(x_data)
     x_data = np.ascontiguousarray(x_data)
     N, T = x_data.shape[:2]
 
+    has_mu = cfg.data.has_mu
     bs_n = cfg.sample.bs_n
     bs_o = cfg.sample.bs_o
     n_functions = cfg.loss.n_functions
@@ -48,11 +50,10 @@ def get_dataloader(
             for _ in range(steps+100):
                 t_idx = rng.integers(0, T)
 
-
                 if bs_n > 0:
                     idx_n = rng.choice(N, size=bs_n, replace=False)
                     xt_batch = x_data[idx_n, t_idx, :]
-                elif bs_o == -1:
+                elif bs_n == -1:
                     xt_batch = x_data[:, t_idx]
 
                 if bs_o > 0:
@@ -64,10 +65,17 @@ def get_dataloader(
                     phi_batch = phi_data[:]
                     lhs_batch = lhs_data[t_idx, :]
 
-       
+                if has_mu:
+                    mu_idx = rng.integers(0, len(mu_idx))
+                    mu_batch = mu_data[mu_idx].reshape(1, 1)
+                    mu_batch = np.repeat(mu_batch, xt_batch.shape[0], axis=0)
+                else:
+                    mu_batch = np.asarray([0.0]).reshape(1, 1)
+                    mu_batch = np.repeat(mu_batch, xt_batch.shape[0], axis=0)
+
                 t0 = np.asarray(t_data[t_idx]).reshape(1, 1)
                 t = np.repeat(t0, xt_batch.shape[0], axis=0)
 
-                yield xt_batch, t, phi_batch, lhs_batch
+                yield xt_batch, t, phi_batch, lhs_batch, mu_batch
 
     return iterator()
