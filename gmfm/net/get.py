@@ -63,14 +63,18 @@ def get_network(cfg: Config, dataloader, key):
     pshape(*batch, title='dataloader sample')
 
     net = get_arch(cfg.net, out_channels)
-    params_init = net.init(key, xt_batch, time, None)
+    if cfg.data.has_mu:
+        mu_t = jnp.concatenate([time, time], axis=-1)
+        params_init = net.init(key, xt_batch, mu_t, None)
 
-    def apply_fn(params, xt, t, mu):
-        if mu is None:
+        def apply_fn(params, xt, t, mu):
+            mu_t = jnp.concatenate([mu, t], axis=-1)
+            return net.apply(params, xt, mu_t, None)
+    else:
+        params_init = net.init(key, xt_batch, time, None)
+
+        def apply_fn(params, xt, t, mu):
             return net.apply(params, xt, t, None)
-        else:
-            mu_t = jnp.concatenate([mu, t], axis=0)
-            return net.apply(params, xt, t, mu_t)
 
     param_count = sum(x.size for x in jax.tree_util.tree_leaves(params_init))
     print(f"n_params {param_count:,}")

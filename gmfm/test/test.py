@@ -35,6 +35,7 @@ def run_test(cfg: Config, apply_fn, opt_params, x_data, cur_mu, key, label=''):
         def apply_fn_mu(params, xt, t):
             return apply_fn(params, xt, t, None)
 
+    pshape(x_0)
     x_pred = sample_model(
         cfg, apply_fn_mu, opt_params, x_0, sigma, T, key)
 
@@ -42,19 +43,20 @@ def run_test(cfg: Config, apply_fn, opt_params, x_data, cur_mu, key, label=''):
         x_pred, nan=0.0, posinf=1e9, neginf=-1e9)
     high_dim = x_true.ndim > 3
 
-    pshape(x_true, x_pred)
     if plot:
         if high_dim:
             plot_spde(cfg, x_pred, x_true)
         else:
-            plot_sde(cfg, x_pred, x_true)
+            plot_sde(cfg, x_pred, x_true, label=label)
 
     if cfg.test.metrics:
 
         stats = R.RESULT['normalize_values']
         x_pred = unnormalize(x_pred, stats)
-        x_true = unnormalize(x_data, stats)
+        x_true = unnormalize(x_true, stats)
+        x_pred = jnp.squeeze(x_pred)
+        x_true = jnp.squeeze(x_true)
         pshape(x_true, x_pred)
-        compute_metrics(cfg, x_pred, x_true)
+        compute_metrics(cfg, x_pred, x_true, label=label)
 
     return x_pred

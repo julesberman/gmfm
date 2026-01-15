@@ -20,7 +20,7 @@ def get_hist(frame, nx=160):
     return np.asarray(hs)
 
 
-def plot_sde(cfg: Config, test_sol, true_sol):
+def plot_sde(cfg: Config, test_sol, true_sol, label=''):
     true_sol = np.nan_to_num(true_sol)
     test_sol = np.nan_to_num(test_sol)
 
@@ -44,7 +44,7 @@ def plot_sde(cfg: Config, test_sol, true_sol):
         plot_sol = np.asarray([true_sol_sub[:, :], test_sol_sub[:, :]])
 
         scatter_movie(plot_sol, alpha=0.3, xlim=[-1, 1], ylim=[-1, 1],
-                      show=False, frames=frames, save_to=f'{out_path}/sol.gif')
+                      show=False, frames=frames, save_to=f'{out_path}/sol_{label}.gif')
     except Exception as e:
         print(e, "could not plot particles")
 
@@ -61,7 +61,7 @@ def plot_sde(cfg: Config, test_sol, true_sol):
         hist_sol_test = get_hist(test_sol_sub[idx_time])
         hist_sol_true = get_hist(true_sol_sub[idx_time])
         plot_grid_movie([hist_sol_true, hist_sol_test], frames=frames, show=False,
-                        save_to=f'{out_path}/hist.gif', titles_x=['True', 'Pred'], live_cbar=True)
+                        save_to=f'{out_path}/hist_{label}.gif', titles_x=['True', 'Pred'], live_cbar=True)
     except Exception as e:
         print(e, "could not plot hist")
 

@@ -17,7 +17,7 @@ from gmfm.utils.tools import (
     batchvmap,
     jax_key_to_np,
     print_ndarray,
-    print_stats, 
+    print_stats,
     pshape,
 )
 
@@ -32,7 +32,6 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
     T = x_orig.shape[1]
 
     k1, k2, k3 = jax.random.split(key, num=3)
-
 
     omega_rho = cfg.loss.omega_rho
     n_functions = cfg.loss.n_functions
@@ -49,10 +48,11 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
     # print_ndarray(sigma_t)
 
     if cfg.loss.b_min > 0:
-        bandwidths = np.exp(np.linspace(np.log(cfg.loss.b_min), np.log(cfg.loss.b_max), cfg.loss.n_bands))
-    else: 
+        bandwidths = np.exp(np.linspace(
+            np.log(cfg.loss.b_min), np.log(cfg.loss.b_max), cfg.loss.n_bands))
+    else:
         bandwidths = np.asarray(list(cfg.loss.bandwidths))
-    print_ndarray(bandwidths)
+    # print_ndarray(bandwidths)
 
     R.RESULT['bandwidths'] = bandwidths
 
@@ -83,9 +83,9 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
 
     if dt_method == 'sm_spline':
         spl = make_smoothing_spline(t_data, mu, lam=5e-5)
-        lhs_data = spl.derivative()(t_data)      
+        lhs_data = spl.derivative()(t_data)
     elif dt_method == 'sm_fd':
-        mu_s = gaussian_filter1d(mu, sigma=2.0, axis=0, mode="nearest")     
+        mu_s = gaussian_filter1d(mu, sigma=2.0, axis=0, mode="nearest")
         lhs_data = np.gradient(mu_s, t_data, axis=0, edge_order=2)
     elif dt_method == 'fd':
         lhs_data = get_dt_finite_difference(mu, t_data, stride)

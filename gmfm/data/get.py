@@ -55,21 +55,22 @@ def get_dataset(cfg: Config, key):
         path = "/scratch/jmb1174/data_hoam/sde/vtwo.pkl"
         x_data, mu_data = get_hoam_data(path)
         x_data = rearrange(x_data, 'M T N D -> M N T D')
-        x_data = x_data[3]
-        x_data = x_data[:, ::sub_t]
+        x_data = x_data[:, :, ::sub_t]
     elif problem == "vbump":
         path = "/scratch/jmb1174/data_hoam/sde/vbump.pkl"
         x_data, mu_data = get_hoam_data(path)
         x_data = rearrange(x_data, 'M T N D -> M N T D')
-        x_data = x_data[3]
-        x_data = x_data[:, ::sub_t]
+        x_data = x_data[:, :, ::sub_t]
 
     if cfg.data.normalize:
         x_data, (shift, scale) = normalize(x_data, method=norm_method, axis=-1)
         print_ndarray(shift, title='stats')
         print_ndarray(scale, title='stats')
 
-    N, T = x_data.shape[:2]
+    if cfg.data.has_mu:
+        N, T = x_data.shape[1:3]
+    else:
+        N, T = x_data.shape[:2]
     t_data = np.linspace(0, 1, T)
     R.RESULT["normalize_values"] = (shift, scale)
 
@@ -77,8 +78,10 @@ def get_dataset(cfg: Config, key):
     print_stats(x_data)
 
     if mu_data is not None:
+        mu_data = mu_data.reshape(-1, 1)
         pshape(mu_data)
         print_stats(mu_data)
+        print_ndarray(mu_data)
 
     return x_data, t_data, mu_data
 

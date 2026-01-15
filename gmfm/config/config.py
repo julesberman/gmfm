@@ -194,15 +194,15 @@ turb_cfg = Config(
 cs.store(name="turb", node=turb_cfg)
 
 
-
 vtwo_cfg = Config(
     dataset="vtwo",
     net=Network(arch='mlp'),
     optimizer=Optimizer(pbar_delay=20),
-    data=Data(normalize=True, norm_method='-11', sub_t=10),
+    data=Data(normalize=True, norm_method='-11', sub_t=5, has_mu=True),
     sample=Sample(bs_n=-1, bs_o=-1),
-    loss=Loss(n_functions=100_000, relative=True, b_min=0.005, b_max=1.0),
-    test=Test(n_samples=25_000)
+    loss=Loss(n_functions=50_000, relative=True, b_min=0.005, b_max=1.0),
+    test=Test(n_samples=25_000),
+    integrate=Integrate(boundary='period')
 
 )
 cs.store(name="vtwo", node=vtwo_cfg)

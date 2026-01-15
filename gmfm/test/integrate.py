@@ -28,7 +28,7 @@ def sample_trajectories(
 
     boundary:
       - "clip":      x <- clip(x, -1, 1)
-      - "periodize": x <- ((x + 1) % 2) - 1   (wrap to [-1, 1))
+      - "period": x <- ((x + 1) % 2) - 1   (wrap to [-1, 1))
       - "none":      no projection
     """
 
@@ -39,7 +39,7 @@ def sample_trajectories(
     if boundary is not None:
         if boundary == "clip":
             def proj(x): return jnp.clip(x, -1.0, 1.0)
-        elif boundary == "periodize":
+        elif boundary == "period":
             def proj(x): return ((x + 1.0) % 2.0) - 1.0
     else:
         def proj(x): return x
