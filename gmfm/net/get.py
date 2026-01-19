@@ -16,8 +16,21 @@ def get_arch(net_cfg: Network, out_channels):
         net = get_unet_size(net_cfg.size, out_channels,
                             net_cfg.emb_features)
     if net_cfg.arch == "mlp":
+        net = get_mlp_size(net_cfg.size, out_channels)
+    return net
+
+
+def get_mlp_size(size, out_channels):
+
+    if size == "s":
         net = DNN(width=128, depth=7,
-                  out_features=out_channels, residual=net_cfg.residual)
+                  out_features=out_channels, residual=False)
+    elif size == "m":
+        net = DNN(width=196, depth=7,
+                  out_features=out_channels, residual=False)
+    elif size == "l":
+        net = DNN(width=256, depth=10,
+                  out_features=out_channels, residual=True)
     return net
 
 

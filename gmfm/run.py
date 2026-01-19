@@ -15,28 +15,43 @@ from gmfm.net.get import get_network
 from gmfm.test.test import run_test
 from gmfm.train.train import train_model
 import numpy as np
+from gmfm.test.metrics import average_metrics
+from gmfm.io.load import load
 
 
 @hydra.main(version_base=None, config_name="default")
 def run(cfg: Config) -> None:
 
-    key, x_data, dataloader, moments, lhs_data, phi_data, mu_data, sigma_t, loss_fn, net, params_init, apply_fn = build(
-        cfg)
+    if cfg.retest is not None:
+        cfg, df = load(cfg.retest)
+        opt_params = df['opt_params']
+        key, x_data, dataloader, moments, lhs_data, phi_data, mu_data, sigma_t, loss_fn, net, params_init, apply_fn = build(
+            cfg)
+        cfg.loss.n_functions = 10
+        key, key_G, key_test, key_opt = jax.random.split(key, num=4)
+    else:
+        key, x_data, dataloader, moments, lhs_data, phi_data, mu_data, sigma_t, loss_fn, net, params_init, apply_fn = build(
+            cfg)
 
-    key, key_G, key_test, key_opt = jax.random.split(key, num=4)
+        key, key_G, key_test, key_opt = jax.random.split(key, num=4)
 
-    opt_params = train_model(cfg, dataloader,
-                             loss_fn, params_init, key_opt, has_aux=True)
+        opt_params = train_model(cfg, dataloader,
+                                 loss_fn, params_init, key_opt, has_aux=True)
 
     if cfg.data.has_mu:
         for m_idx, cur_mu in enumerate(mu_data):
-            run_test(cfg, apply_fn, opt_params,
-                     x_data[m_idx], cur_mu, key, label=m_idx)
+            if m_idx in cfg.test.test_idx:
+                run_test(cfg, apply_fn, opt_params,
+                         x_data[m_idx], cur_mu, key, label=m_idx)
     else:
         cur_mu = None
         run_test(cfg, apply_fn, opt_params, x_data, cur_mu, key)
 
+    final_metric = average_metrics()
+
     save_results(R.RESULT, cfg)
+
+    return final_metric
 
 
 def build(cfg: Config):

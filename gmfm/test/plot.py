@@ -12,7 +12,7 @@ def get_hist_single(frame, nx):
     return H.T
 
 
-def get_hist(frame, nx=160):
+def get_hist(frame, nx=135):
     hs = []
     for f in frame:
         h = get_hist_single(f, nx)

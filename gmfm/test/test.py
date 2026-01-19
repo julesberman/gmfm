@@ -21,11 +21,17 @@ def run_test(cfg: Config, apply_fn, opt_params, x_data, cur_mu, key, label=''):
 
     print("sampling model...")
     rng = jax_key_to_np(key)
-    n_idx = rng.integers(0, x_data.shape[0], size=n_samples)
 
-    x_true = x_data[n_idx]
-    x_0 = x_true[:, 0]
-    T = x_true.shape[1]
+    if n_samples == -1:
+        x_true = x_data
+    else:
+        n_idx = rng.choice(x_data.shape[0], size=n_samples, replace=False)
+        x_true = x_data[n_idx]
+
+    if cfg.test.t_samples is not None:
+        t_idx = np.linspace(0,  x_true.shape[1] - 1, cfg.test.t_samples,
+                            endpoint=True, dtype=np.int32)
+        x_true = x_true[:, t_idx]
 
     if cfg.data.has_mu:
         def apply_fn_mu(params, xt, t):
@@ -35,9 +41,14 @@ def run_test(cfg: Config, apply_fn, opt_params, x_data, cur_mu, key, label=''):
         def apply_fn_mu(params, xt, t):
             return apply_fn(params, xt, t, None)
 
-    pshape(x_0)
+    T = x_true.shape[1]
+    t_int = jnp.linspace(0.0, 1.0, T)
+
+    # if skip ic
+    # t_int = t_int[1:]
+    x_0 = x_true[:, 0]
     x_pred = sample_model(
-        cfg, apply_fn_mu, opt_params, x_0, sigma, T, key)
+        cfg, apply_fn_mu, opt_params, x_0, sigma, t_int, key)
 
     x_pred = np.nan_to_num(
         x_pred, nan=0.0, posinf=1e9, neginf=-1e9)

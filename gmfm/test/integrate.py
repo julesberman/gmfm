@@ -14,9 +14,9 @@ from gmfm.config.config import Config
 
 def sample_trajectories(
     x0: jnp.ndarray,
+    t_int: jnp.ndarray,
     params,
     apply_fn,
-    n_steps,
     key,
     *,
     sigma: float = 0.0,
@@ -33,7 +33,7 @@ def sample_trajectories(
     """
 
     batch_size = x0.shape[0]
-    ts = jnp.linspace(0.0, 1.0, n_steps, dtype=x0.dtype)
+    ts = t_int
     dt = ts[1] - ts[0]
 
     if boundary is not None:
@@ -71,12 +71,12 @@ def sample_trajectories(
     return jnp.concatenate([x0[None, ...], xs], axis=0)
 
 
-def sample_model(cfg: Config, apply_fn, opt_params, x_0, sigma, n_steps, key):
+def sample_model(cfg: Config, apply_fn, opt_params, x_0, sigma, t_int, key):
 
     boundary = cfg.integrate.boundary
 
     traj = sample_trajectories(
-        x_0, opt_params, apply_fn, n_steps, key, sigma=sigma, boundary=boundary)
+        x_0, t_int, opt_params, apply_fn, key, sigma=sigma, boundary=boundary)
     traj = np.asarray(traj)
 
     traj = rearrange(traj, 'T N ... -> N T ...')

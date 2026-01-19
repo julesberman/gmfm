@@ -61,6 +61,11 @@ def get_dataset(cfg: Config, key):
         x_data, mu_data = get_hoam_data(path)
         x_data = rearrange(x_data, 'M T N D -> M N T D')
         x_data = x_data[:, :, ::sub_t]
+    elif problem == "v6":
+        path = "/scratch/jmb1174/data_hoam/v6_np/v6_5traj.pkl"
+        x_data, mu_data = get_hoam_data(path)
+        x_data = rearrange(x_data, 'M T N D -> M N T D')
+        x_data = x_data[:, :, ::sub_t]
 
     if cfg.data.normalize:
         x_data, (shift, scale) = normalize(x_data, method=norm_method, axis=-1)

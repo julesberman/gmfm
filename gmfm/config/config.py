@@ -24,7 +24,7 @@ class Optimizer:
     scheduler: str = 'cos'
     warm_up: bool = False
     optimizer: str = "adam"
-    ema_decay: float | None = 0.9999
+    ema_decay: float | None = None
     grad_clip: float | None = None
     pbar_delay: int | None = None
 
@@ -68,6 +68,8 @@ class Loss:
     n_bands: int = 100
     n_functions: int = 10_000
     reg_kin: float = 0.0
+    reg_smt: float = 0.0
+    reg_traj: float = 0.0
     relative: bool = True
     stride: int = 1
     dt: str = 'cubic'
@@ -86,11 +88,14 @@ class Loss:
 @dataclass
 class Test:
     n_samples: int = 256
+    t_samples: int = 128
     save_samples: bool = False
     n_plot: int = 16
     save_trajectories: bool = False
     plot: bool = True
     metrics: bool = True
+    test_idx: list[int] = field(
+        default_factory=lambda: [0])
 
 
 @dataclass
@@ -98,6 +103,8 @@ class Config:
 
     dataset: str = 'wave'
     dump: bool = True
+
+    retest: str | None = None
 
     net: Network = field(default_factory=Network)
 
@@ -195,17 +202,46 @@ cs.store(name="turb", node=turb_cfg)
 
 
 vtwo_cfg = Config(
-    dataset="vtwo",
+    dataset="vbump",
     net=Network(arch='mlp'),
-    optimizer=Optimizer(pbar_delay=20),
-    data=Data(normalize=True, norm_method='-11', sub_t=5, has_mu=True),
+    optimizer=Optimizer(pbar_delay=50),
+    data=Data(normalize=True, norm_method='-11', sub_t=1, has_mu=True),
     sample=Sample(bs_n=-1, bs_o=-1),
     loss=Loss(n_functions=50_000, relative=True, b_min=0.005, b_max=1.0),
-    test=Test(n_samples=25_000),
+    test=Test(n_samples=-1, test_idx=[1, 8]),
+    integrate=Integrate(boundary='period')
+
+)
+cs.store(name="vbump", node=vtwo_cfg)
+
+vtwo_cfg = Config(
+    dataset="vtwo",
+    net=Network(arch='mlp'),
+    optimizer=Optimizer(pbar_delay=50),
+    data=Data(normalize=True, norm_method='-11', sub_t=1, has_mu=True),
+    sample=Sample(bs_n=-1, bs_o=-1),
+    loss=Loss(n_functions=100_000, relative=True, bandwidths=[
+              0.5, 0.1], sigma=5e-2, reg_kin=1e-2),
+    test=Test(n_samples=-1, test_idx=[1, 8]),
     integrate=Integrate(boundary='period')
 
 )
 cs.store(name="vtwo", node=vtwo_cfg)
+
+
+vtwo_cfg = Config(
+    dataset="v6",
+    net=Network(arch='mlp'),
+    optimizer=Optimizer(pbar_delay=50),
+    data=Data(normalize=True, norm_method='-11',
+              sub_t=1, has_mu=True, n_samples=25_000),
+    sample=Sample(bs_n=-1, bs_o=-1),
+    loss=Loss(n_functions=100_000, relative=True, b_min=0.01,
+              b_max=0.5, sigma=5e-2, reg_kin=1e-2),
+    test=Test(n_samples=-1, test_idx=[2]),
+    integrate=Integrate(boundary='period')
+)
+cs.store(name="v6", node=vtwo_cfg)
 
 
 def get_outpath() -> Path:

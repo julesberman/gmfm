@@ -3,13 +3,15 @@ import jax.numpy as jnp
 import jax_cfd.base as cfd
 import jax_cfd.base.grids as grids
 import numpy as np
-from jax import jit, vmap
+from jax import jit
+from jax import numpy as jnp
+from jax import vmap
 from jax.numpy.fft import fft2, fftfreq, ifft2
 
-from gmfm.utils.tools import batchvmap
+from gmfm.utils.tools import batchvmap, normalize
 
 
-def solve_wave_equation(Tend, dt, N, ic_fn, speed):
+def solve_wave_equation(Tend, dt, N, ic_field, speed):
     """
     Solves the 2D wave equation using a spectral method.
 
@@ -32,7 +34,7 @@ def solve_wave_equation(Tend, dt, N, ic_fn, speed):
     x_pts = jnp.asarray([m.flatten() for m in m_grids]).T
 
     # Initial condition
-    u0 = ic_fn(x_pts).reshape(N, N)
+    u0 = ic_field
     c = speed
     c2 = c**2
 
@@ -85,7 +87,9 @@ def solve_wave_equation(Tend, dt, N, ic_fn, speed):
 
 
 def get_wave_random_media(n_samples, t_pts, x_pts, key, batch_size=32, sigma=None):
-    keys = jax.random.split(key, num=n_samples)
+    skey, sskey = jax.random.split(key)
+    keys = jax.random.split(skey, num=n_samples)
+    keys2 = jax.random.split(sskey, num=n_samples)
 
     grid = grids.Grid((x_pts, x_pts), domain=(
         (0, 2 * jnp.pi), (0, 2 * jnp.pi)))
@@ -100,39 +104,36 @@ def get_wave_random_media(n_samples, t_pts, x_pts, key, batch_size=32, sigma=Non
         v0 = cfd.initial_conditions.filtered_velocity_field(
             key, grid, max_velocity, peak_wavenumber
         )
-        # v0 = cfd.finite_differences.curl_2d(v0).data
-        a = v0[0].data
-        b = v0[1].data
-        v0 = a+b
-
-        x_min = np.min(v0)
-        x_max = np.max(v0)
-        shift = x_min
-        scale = x_max - x_min
-        v0 = (v0 - shift) / scale
-
+        v0 = cfd.finite_differences.curl_2d(v0).data
+        v0, _ = normalize(v0, method="01")
         return v0
 
     s_fields = vmap(get_speed_field)(keys)
 
     if sigma == 0:
-        s_fields = np.ones_like(s_fields)*0.72
+        s_fields = np.ones_like(s_fields)*0.5
 
-    @vmap
-    def ic_fn(x):
-        b = -jnp.pi
-        x += b
-        return jnp.exp(-(jnp.sum(x**2)) * 30)
+    def ic_fn(key):
+        peak_wavenumber = 1
+        v0 = cfd.initial_conditions.filtered_velocity_field(
+            key, grid, max_velocity, peak_wavenumber
+        )
+        v0 = cfd.finite_differences.curl_2d(v0).data
+        v0, _ = normalize(v0, method="01")
+        return v0
+    ic_fields = vmap(ic_fn)(keys2)
 
     Tend = 8.0
     dt = 4e-3
 
     @jit
-    def solve(s_f):
-        sol = solve_wave_equation(Tend, dt, x_pts, ic_fn, s_f)
+    def solve(fields):
+        ic_field, s_f = fields
+        sol = solve_wave_equation(Tend, dt, x_pts,  ic_field, s_f)
         t_idx = jnp.linspace(0, len(sol) - 1, t_pts, dtype=jnp.int32)
         return sol[t_idx]
 
-    sols = batchvmap(solve, batch_size, in_arg=0)(s_fields)
+    fields = jnp.concatenate([ic_fields[:, None], s_fields[:, None]], axis=1)
+    sols = batchvmap(solve, batch_size, in_arg=0)(fields)
     sols = np.asarray(sols)
     return sols

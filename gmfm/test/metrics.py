@@ -12,6 +12,13 @@ from einops import rearrange
 from jax import random as jrandom
 from scipy.sparse.linalg import spsolve
 
+from ott import utils
+from ott.geometry import pointcloud
+from ott.problems.linear import linear_problem
+from ott.solvers.linear import sinkhorn
+from tqdm import tqdm
+from jax import jit
+
 
 def compute_metrics(cfg: Config, x_pred, x_true, label):
 
@@ -53,6 +60,36 @@ def compute_metrics(cfg: Config, x_pred, x_true, label):
         err_electric = np.mean(err_electric)
         R.RESULT[f"err_electric_{label}"] = err_electric
         print(f"err_electric_{label}: {err_electric:.3e}")
+
+        if 'all_err_electric' not in R.RESULT:
+            R.RESULT['all_err_electric'] = [err_electric]
+        else:
+            R.RESULT['all_err_electric'].append(err_electric)
+
+        print(f"computing wasserstein")
+
+        epsilon = 1e-3
+        n_wass_time = 16
+
+        t_idx = np.linspace(0, 1, n_wass_time, dtype=np.int32)
+
+        n_sample_wass = 5_000
+
+        test_sol_wass = x_true[t_idx, :n_sample_wass]
+        true_sol_wass = x_pred[t_idx, :n_sample_wass]
+
+        w_time = compute_wasserstein_time(
+            test_sol_wass, true_sol_wass, eps=epsilon)
+
+        R.RESULT[f"time_wass_dist_{label}"] = w_time
+        mean_w_dist = np.mean(w_time)
+        R.RESULT[f"mean_wass_dist_{label}"] = mean_w_dist
+        print(f"mean_wass_dist_{label}: {mean_w_dist:.3e}")
+
+        if 'all_wass_dist' not in R.RESULT:
+            R.RESULT['all_wass_dist'] = [mean_w_dist]
+        else:
+            R.RESULT['all_wass_dist'].append(mean_w_dist)
 
 
 def compute_mean_relerr(pred, true):
@@ -229,3 +266,39 @@ def compute_electric_energy(sol, boxsize=50):
     E = -0.5 * np.mean(phi, axis=1)
 
     return E
+
+
+def compute_wasserstein_time(test_sol, true_sol, eps=1e-3):
+    T = test_sol.shape[0]
+    wdist = []
+    solver = sinkhorn.Sinkhorn(max_iterations=10_000, threshold=eps)
+    solver = jit(solver)
+
+    for t in tqdm(range(T), colour='blue'):
+        x = test_sol[t]
+        y = true_sol[t]
+        geom = pointcloud.PointCloud(x, y)
+        lp = linear_problem.LinearProblem(geom)
+        out = solver(lp)
+
+        wdist_t = jnp.sqrt(out.primal_cost)
+        wdist.append(wdist_t)
+
+    # Stack into a single JAX array
+    return jnp.stack(wdist, axis=0)
+
+
+def average_metrics():
+
+    # compute averages
+    metrics = [
+        "all_err_electric",
+        "all_wass_dist"
+    ]
+    for metric in metrics:
+        if metric in R.RESULT:
+            mean_m = np.mean(R.RESULT[metric])
+            R.RESULT[f"{metric}_total"] = mean_m
+            print(f"{metric} final mean: {mean_m:.5f}")
+
+    return R.RESULT[f"all_err_electric_total"]
