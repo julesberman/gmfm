@@ -9,6 +9,7 @@ from jax import jit, lax, vmap
 from scipy.interpolate import make_smoothing_spline
 from scipy.ndimage import gaussian_filter1d
 from tqdm.auto import tqdm
+from gmfm.loss.spline import get_auto_spline
 
 import gmfm.io.result as R
 from gmfm.config.config import Config
@@ -54,7 +55,7 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
         bandwidths = np.asarray(list(cfg.loss.bandwidths))
     # print_ndarray(bandwidths)
 
-    R.RESULT['bandwidths'] = bandwidths
+    # R.RESULT['bandwidths'] = bandwidths
 
     _, _, D = x_flat.shape
     kpn = jax_key_to_np(k1)
@@ -70,10 +71,10 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
     mu_list = []
     for t_idx in pbar_mu:
         xt = x_flat[:, t_idx]  # (N,D)
-        if N > 25_000:
-            mu_t = rff_phi_chunked(xt, fixed_params)  # (2M,)
-        else:
-            mu_t = rff_phi(xt, fixed_params)          # (2M,)
+        # if N > 25_000:
+        #     mu_t = rff_phi_chunked(xt, fixed_params)  # (2M,)
+        # else:
+        mu_t = rff_phi(xt, fixed_params)          # (2M,)
 
         mu_list.append(np.asarray(mu_t))
 
@@ -81,9 +82,14 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
 
     dt_method = cfg.loss.dt
 
+    print(mu.shape)
     if dt_method == 'sm_spline':
-        spl = make_smoothing_spline(t_data, mu, lam=5e-5)
-        lhs_data = spl.derivative()(t_data)
+        sm = cfg.loss.dt_sm
+        if sm == 0:
+            lhs_data = get_auto_spline(t_data, mu)
+        else:
+            spl = make_smoothing_spline(t_data, mu, lam=sm)
+            lhs_data = spl.derivative()(t_data)
     elif dt_method == 'sm_fd':
         mu_s = gaussian_filter1d(mu, sigma=2.0, axis=0, mode="nearest")
         lhs_data = np.gradient(mu_s, t_data, axis=0, edge_order=2)

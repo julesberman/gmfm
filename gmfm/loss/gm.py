@@ -17,6 +17,7 @@ def make_gmfm_loss(cfg: Config, apply_fn):
 
     sigma = cfg.loss.sigma
     reg_kin = cfg.loss.reg_kin
+    reg_traj = cfg.loss.reg_traj
     relative = cfg.loss.relative
     normalize = cfg.loss.normalize
     has_mu = cfg.data.has_mu
@@ -24,7 +25,7 @@ def make_gmfm_loss(cfg: Config, apply_fn):
     grad_fn = rff_grad_dot_v
     lap_fn = rff_laplace_phi
 
-    def loss_fn(params, x_t, t, omegas, lhs, mu, key):
+    def loss_fn(params, x_t, t, omegas, lhs, mu, xtp1_batch, dt, key):
         final_loss = 0.0
         aux = {}
 
@@ -32,7 +33,7 @@ def make_gmfm_loss(cfg: Config, apply_fn):
             v_t = apply_fn(params, x_t, t, mu)
         else:
             v_t = apply_fn(params, x_t, t, None)
-            
+
         v_t = rearrange(v_t, 'N ... -> N (...)')
         x_t = rearrange(x_t, 'N ... -> N (...)')
 
@@ -78,9 +79,18 @@ def make_gmfm_loss(cfg: Config, apply_fn):
         aux['t'] = jnp.mean(t)
 
         if reg_kin > 0:
-            final_loss = final_loss + reg_kin * \
-                jnp.mean(jnp.sum(v_t ** 2, axis=-1))
+            kin_loss = jnp.mean(jnp.sum(v_t ** 2, axis=-1))
+            aux['kin'] = kin_loss
+            final_loss = final_loss + reg_kin * kin_loss
 
+        if reg_traj > 0:
+            xp1_pred = x_t + dt*v_t
+            err = xp1_pred - xtp1_batch
+            pshape(xp1_pred, xtp1_batch, dt)
+            traj_loss = jnp.mean(jnp.sum(err ** 2, axis=-1)) / \
+                jnp.mean(jnp.sum(xtp1_batch ** 2, axis=-1))
+            aux['traj'] = traj_loss
+            final_loss = final_loss + reg_traj * traj_loss
         return final_loss, aux
 
     return loss_fn

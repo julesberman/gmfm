@@ -27,7 +27,8 @@ def load_with_pattern(directory, filename_pattern):
 
 
 def randkey():
-    return jax.random.PRNGKey(random.randint(-1e12, 1e12))
+    seed = np.random.SeedSequence().generate_state(1, dtype=np.uint32)[0]
+    return jax.random.PRNGKey(seed)
 
 
 def randkeys(num):

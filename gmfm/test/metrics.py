@@ -301,4 +301,6 @@ def average_metrics():
             R.RESULT[f"{metric}_total"] = mean_m
             print(f"{metric} final mean: {mean_m:.5f}")
 
-    return R.RESULT[f"all_err_electric_total"]
+    if 'all_err_electric_total' in R.RESULT:
+        return R.RESULT[f"all_err_electric_total"]
+    return 0.0

@@ -50,7 +50,9 @@ def get_dataloader(
     else:
         def iterator():
             for _ in range(steps+100):
-                t_idx = rng.integers(0, T)
+                t_idx = rng.integers(0, T-1)
+                t_idxp1 = t_idx + 1
+                dt = np.mean(t_data[t_idxp1] - t_data[t_idx])
 
                 xt_batch = x_data
                 lhs_batch = lhs_data
@@ -64,9 +66,11 @@ def get_dataloader(
 
                 if bs_n > 0:
                     idx_n = rng.choice(N, size=bs_n, replace=False)
-                    xt_batch = xt_batch[idx_n, t_idx, :]
+                    xt1_batch = xt_batch[idx_n, t_idx, :]
+                    xtp1_batch = xt_batch[idx_n, t_idxp1]
                 elif bs_n == -1:
-                    xt_batch = xt_batch[:, t_idx]
+                    xt1_batch = xt_batch[:, t_idx]
+                    xtp1_batch = xt_batch[:, t_idxp1]
 
                 if bs_o > 0:
                     idx_o = rng.choice(n_functions, size=bs_o, replace=False)
@@ -78,10 +82,10 @@ def get_dataloader(
                     lhs_batch = lhs_batch[t_idx, :]
 
                 t0 = np.asarray(t_data[t_idx]).reshape(1, 1)
-                t = np.repeat(t0, xt_batch.shape[0], axis=0)
+                t = np.repeat(t0, xt1_batch.shape[0], axis=0)
 
-                mu_batch = np.repeat(cur_mu, xt_batch.shape[0], axis=0)
+                mu_batch = np.repeat(cur_mu, xt1_batch.shape[0], axis=0)
 
-                yield xt_batch, t, phi_batch, lhs_batch, mu_batch
+                yield xt1_batch, t, phi_batch, lhs_batch, mu_batch, xtp1_batch, dt
 
     return iterator()

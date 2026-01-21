@@ -67,6 +67,7 @@ class Loss:
     b_max: float = -1
     n_bands: int = 100
     n_functions: int = 10_000
+    dt_sm: float = 0.0
     reg_kin: float = 0.0
     reg_smt: float = 0.0
     reg_traj: float = 0.0
@@ -152,6 +153,18 @@ hydra_config = {
 cs = ConfigStore.instance()
 cs.store(name="default", node=Config)
 
+toy_cfg = Config(
+    dataset="toy",
+    net=Network(arch='mlp'),
+    optimizer=Optimizer(pbar_delay=50),
+    data=Data(normalize=True, norm_method='-11', sub_t=1),
+    sample=Sample(bs_n=-1, bs_o=-1),
+    loss=Loss(n_functions=25_000, relative=True, bandwidths=[0.5, 0.1, 0.05]),
+    test=Test(n_samples=-1)
+)
+cs.store(name="toy", node=toy_cfg)
+
+
 wave_cfg = Config(
     dataset="wave",
     data=Data(sub_x=4, sub_t=1, n_samples=1024),
@@ -179,11 +192,11 @@ lz9_cfg = Config(
     dataset="lz9",
     net=Network(arch='mlp'),
     optimizer=Optimizer(pbar_delay=20),
-    data=Data(n_samples=25_000, n_t=64, normalize=True, norm_method='-11'),
+    data=Data(n_samples=25_000, n_t=128, normalize=True, norm_method='-11'),
     sample=Sample(bs_n=10_000, bs_o=-1),
     loss=Loss(n_functions=50_000, relative=True,
-              bandwidths=[2.0, 1.0, 0.5, 0.1, 0.05]),
-    test=Test(n_samples=20_000)
+              bandwidths=[2.0, 1.0, 0.5]),
+    test=Test(n_samples=-1)
 
 )
 cs.store(name="lz9", node=lz9_cfg)
@@ -220,7 +233,7 @@ vtwo_cfg = Config(
     optimizer=Optimizer(pbar_delay=50),
     data=Data(normalize=True, norm_method='-11', sub_t=1, has_mu=True),
     sample=Sample(bs_n=-1, bs_o=-1),
-    loss=Loss(n_functions=100_000, relative=True, bandwidths=[
+    loss=Loss(n_functions=25_000, relative=True, bandwidths=[
               0.5, 0.1], sigma=5e-2, reg_kin=1e-2),
     test=Test(n_samples=-1, test_idx=[1, 8]),
     integrate=Integrate(boundary='period')
@@ -236,8 +249,8 @@ vtwo_cfg = Config(
     data=Data(normalize=True, norm_method='-11',
               sub_t=1, has_mu=True, n_samples=25_000),
     sample=Sample(bs_n=-1, bs_o=-1),
-    loss=Loss(n_functions=100_000, relative=True, b_min=0.01,
-              b_max=0.5, sigma=5e-2, reg_kin=1e-2),
+    loss=Loss(n_functions=100_000, relative=True, b_min=0.1,
+              b_max=0.5, sigma=5e-2, reg_kin=1e-2, normalize='omega'),
     test=Test(n_samples=-1, test_idx=[2]),
     integrate=Integrate(boundary='period')
 )
