@@ -16,38 +16,34 @@ class DNN(nn.Module):
     heads: int = 1
 
     @nn.compact
-    def __call__(self,  x, time, class_l=None):
+    def __call__(self,  x, time, mu):
 
         x_shape = x.shape
         x = rearrange(x, 'B ... -> B (...)')
 
         A = nn.gelu
         if time is not None:
+            time = MLP(self.width, depth=2,
+                       out_features=self.out_features, activate_last=True)(time)
 
-            time = nn.Dense(
-                self.width,
-                use_bias=self.use_bias,
-            )(time)
-            time = A(time)
-
-        if class_l is not None:
-            class_l = nn.Embed(self.n_classes, self.width)(class_l)
+        if mu is not None:
+            mu = MLP(self.width, depth=2,
+                     out_features=self.out_features, activate_last=True)(mu)
 
         temb = None
-        if time is not None and class_l is not None:
+        if time is not None and mu is not None:
             temb = jnp.concatenate(
-                [time, class_l], axis=-1)
-        if time is None and class_l is not None:
-            temb = class_l
-        if time is not None and class_l is None:
+                [time, mu], axis=-1)
+        if time is None and mu is not None:
+            temb = mu
+        if time is not None and mu is None:
             temb = time
-
-        if temb is not None:
-            temb = MLP(
-                width=self.width,
-                depth=2,
-                use_bias=self.use_bias,
-            )(temb)
+        # if temb is not None:
+        #     temb = MLP(
+        #         width=self.width,
+        #         depth=1,
+        #         use_bias=self.use_bias,
+        #     )(temb)
 
         last_x = None
         for _ in range(self.depth):

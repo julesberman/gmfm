@@ -29,7 +29,9 @@ def run_test(cfg: Config, apply_fn, opt_params, x_data, cur_mu, key, label=''):
         x_true = x_data[n_idx]
 
     if cfg.test.t_samples is not None:
-        t_idx = np.linspace(0,  x_true.shape[1] - 1, cfg.test.t_samples,
+
+        t_pts = min(cfg.test.t_samples, x_true.shape[1])
+        t_idx = np.linspace(0,  x_true.shape[1] - 1, t_pts,
                             endpoint=True, dtype=np.int32)
         x_true = x_true[:, t_idx]
 

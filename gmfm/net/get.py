@@ -77,12 +77,11 @@ def get_network(cfg: Config, dataloader, key):
 
     net = get_arch(cfg.net, out_channels)
     if cfg.data.has_mu:
-        mu_t = jnp.concatenate([time, time], axis=-1)
-        params_init = net.init(key, xt_batch, mu_t, None)
+        mu_dummy = time
+        params_init = net.init(key, xt_batch, time, mu_dummy)
 
         def apply_fn(params, xt, t, mu):
-            mu_t = jnp.concatenate([mu, t], axis=-1)
-            return net.apply(params, xt, mu_t, None)
+            return net.apply(params, xt, t, mu)
     else:
         params_init = net.init(key, xt_batch, time, None)
 

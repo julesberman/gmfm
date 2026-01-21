@@ -36,7 +36,6 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
 
     omega_rho = cfg.loss.omega_rho
     n_functions = cfg.loss.n_functions
-    kpn = jax_key_to_np(k1)
     stride = int(cfg.loss.stride)
 
     # sigma_t = []

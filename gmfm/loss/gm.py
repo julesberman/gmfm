@@ -54,29 +54,45 @@ def make_gmfm_loss(cfg: Config, apply_fn):
             w0 = 1.0 / (jnp.sum(omegas**2, axis=-1) + 1e-8)     # (M,)
             w = jnp.concatenate([w0, w0], axis=0)              # (2M,)
             w = jax.lax.stop_gradient(w)
-
+            final_loss = jnp.sum(w * err2) / (jnp.sum(w * lhs**2) + 1e-8)
         elif normalize == 'grad':
             w = grad_phi_weights(x_t, omegas, eps=1e-8)        # (2M,)
             w = w / (jnp.mean(w) + 1e-8)                       # optional
             w = jnp.clip(w, 0.0, 1e3)                          # optional
             w = jax.lax.stop_gradient(w)
-
-        if relative:
-            if w is None:
-                final_loss = jnp.mean(err2) / (jnp.mean(lhs**2) + 1e-8)
-            else:
-                final_loss = jnp.sum(w * err2) / (jnp.sum(w * lhs**2) + 1e-8)
+            final_loss = jnp.sum(w * err2) / (jnp.sum(w * lhs**2) + 1e-8)
+        elif normalize == 'dt':
+            h = 2.0 * dt
+            lhs = lhs*h
+            err2 = (lhs - h*rhs)**2
+            den = jnp.mean(lhs**2) + (h)**2 * jnp.mean(rhs**2)
+            den = jax.lax.stop_gradient(den)
+            final_loss = jnp.mean(err2) / (den + 1e-8)
+        elif normalize == 'lhs':
+            err2 = (lhs - rhs)**2
+            den = jnp.mean(lhs**2)
+            den = jax.lax.stop_gradient(den)
+            final_loss = jnp.mean(err2) / (den + 1e-8)
+        elif normalize == 'rhs':
+            err2 = (lhs - rhs)**2
+            den = jnp.mean(rhs**2)
+            den = jax.lax.stop_gradient(den)
+            final_loss = jnp.mean(err2) / (den + 1e-8)
+        elif normalize == 'sym':
+            err2 = (lhs - rhs)**2
+            den = jnp.mean(lhs**2) + jnp.mean(rhs**2)
+            den = jax.lax.stop_gradient(den)
+            final_loss = jnp.mean(err2) / (den + 1e-8)
         else:
-            if w is None:
-                final_loss = jnp.mean(err2)
-            else:
-                final_loss = jnp.sum(w * err2) / (jnp.sum(w) + 1e-8)
+            err2 = (lhs - rhs)**2
+            final_loss = jnp.mean(err2)
 
         pshape(x_t, omegas, v_t, x_t, g_t, lhs, rhs, err2)
         aux['lhs'] = jnp.mean(lhs**2)
         aux['rhs'] = jnp.mean(rhs**2)
         aux['err2'] = jnp.mean(err2)
         aux['t'] = jnp.mean(t)
+        aux['dt'] = jnp.mean(dt)
 
         if reg_kin > 0:
             kin_loss = jnp.mean(jnp.sum(v_t ** 2, axis=-1))

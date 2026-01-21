@@ -234,7 +234,7 @@ vtwo_cfg = Config(
     data=Data(normalize=True, norm_method='-11', sub_t=1, has_mu=True),
     sample=Sample(bs_n=-1, bs_o=-1),
     loss=Loss(n_functions=25_000, relative=True, bandwidths=[
-              0.5, 0.1], sigma=5e-2, reg_kin=1e-2),
+              0.5, 0.1, 0.05, 0.01], sigma=5e-2, reg_kin=1e-2),
     test=Test(n_samples=-1, test_idx=[1, 8]),
     integrate=Integrate(boundary='period')
 

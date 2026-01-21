@@ -9,6 +9,8 @@ from tqdm.auto import tqdm
 
 import gmfm.io.result as R
 from gmfm.config.config import Config
+from gmfm.config.config import Config, get_outpath
+import matplotlib.pyplot as plt
 
 str_to_opt = {
     "adam": optax.adam,
@@ -48,6 +50,14 @@ def train_model(cfg: Config, dataloader, loss, params_init, key_opt, has_aux=Fal
     if len(loss_history) > 0:
         R.RESULT[f"{name}_final_loss"] = float(loss_history[-1])
 
+    plt.figure(figsize=(10, 6))
+    plt.semilogy(loss_history)
+    plt.gcf().savefig(
+        f"{get_outpath()}/loss.png",
+    )
+    plt.cla()
+    plt.clf()
+
     return opt_params
 
 
@@ -72,7 +82,7 @@ def run_train(
     if scheduler is not None:
         if scheduler == "cos":
             learning_rate = optax.cosine_decay_schedule(
-                init_value=learning_rate, decay_steps=iters, alpha=1e-3
+                init_value=learning_rate, decay_steps=iters, alpha=5e-4
             )
         elif scheduler == "const":
             learning_rate = optax.constant_schedule(value=learning_rate)

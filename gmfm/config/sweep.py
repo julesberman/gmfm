@@ -5,20 +5,19 @@ SWEEP = {
     "optimizer.pbar_delay": "100",
     "optimizer.iters": "500_000",
     # "loss.relative": "True, False",
-    "loss.normalize": "omega",
+    "loss.normalize": "dt, sym, lhs, rhs",
     # "loss.resample":z "True, False",
-    "loss.b_min": "0.01",
-    "loss.b_max": "0.5",
-    # "loss.dt": 'sm_spline',
-    # "loss.dt_sm": '0.0, 1e-4',
-
-    "sample.bs_o": "-1, 1000, 10_000, 25_000",
-    "sample.bs_n": "-1, 1000, 10_000, 25_000",
+    # "loss.b_min": "0.005, 0.01, 0.05, 0.1",
+    # "loss.b_max": "0.5",
+    "loss.dt": 'sm_spline',
+    "loss.dt_sm": '5e-5',
+    # "sample.bs_o": "-1, 1000, 10_000, 25_000",
+    # "sample.bs_n": "-1, 1000, 10_000, 25_000",
     # "loss.omega_rho": 'gauss, orf',
     # "loss.n_functions": "50_000, 100_000, 200_000",
     "loss.sigma": "5e-2",
-    "loss.reg_kin": "1e-2"
-
+    "loss.reg_kin": "1e-2",
+    "data.sub_t": "1"
 }
 
 
