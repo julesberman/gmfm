@@ -32,9 +32,27 @@ def _sample_multimodal_gaussian(n, rng=None, num_modes=6, radius=1.0, sigma=0.1)
     rng = np.random.default_rng(rng)
     angles = np.linspace(0, 2 * math.pi, num_modes, endpoint=False)
     means = np.c_[radius * np.cos(angles), radius * np.sin(angles)]
-    cls = rng.integers(0, num_modes, size=n)          # 0..num_modes-1
-    x = means[cls] + rng.normal(0, sigma, size=(n, 2))
-    return x, cls
+    m = (n + num_modes - 1) // num_modes               # points per mode (ceil)
+    cls = np.repeat(np.arange(num_modes), m)
+    x = means[cls] + rng.normal(0, sigma, size=(cls.size, 2))
+    p = rng.permutation(cls.size)
+    return x[p], cls[p]
+
+
+def _sample_checkerboard_3(n, rng=None):
+    rng = np.random.default_rng(rng)
+    kept = np.array([(i, j) for j in range(3)
+                    for i in range(3) if ((i + j) & 1) == 0], int)  # (5,2)
+    K = len(kept)
+    # points per kept cell (ceil)
+    m = (n + K - 1) // K
+    cls = np.repeat(np.arange(K), m)
+    ij = kept[cls]
+    u = rng.random((cls.size, 2))
+    s = 2.0 / 3.0
+    xy = -1.0 + (ij + u) * s
+    p = rng.permutation(cls.size)
+    return xy[p], cls[p]
 
 
 def get_2d_dataset(name: str, n_samples: int = 50_000, seed: int | None = None):

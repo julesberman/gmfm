@@ -1,3 +1,4 @@
+import ot
 import os
 
 import jax.numpy as jnp
@@ -68,18 +69,8 @@ def compute_metrics(cfg: Config, x_pred, x_true, label):
 
         print(f"computing wasserstein")
 
-        epsilon = 1e-3
-        n_wass_time = 16
-
-        t_idx = np.linspace(0, 1, n_wass_time, dtype=np.int32)
-
-        n_sample_wass = 5_000
-
-        test_sol_wass = x_true[t_idx, :n_sample_wass]
-        true_sol_wass = x_pred[t_idx, :n_sample_wass]
-
-        w_time = compute_wasserstein_time(
-            test_sol_wass, true_sol_wass, eps=epsilon)
+        w_time = compute_wasserstein_time_pot(
+            x_true, x_pred, n_samples=None, sub_t=8)
 
         R.RESULT[f"time_wass_dist_{label}"] = w_time
         mean_w_dist = np.mean(w_time)
@@ -286,6 +277,36 @@ def compute_wasserstein_time(test_sol, true_sol, eps=1e-3):
 
     # Stack into a single JAX array
     return jnp.stack(wdist, axis=0)
+
+
+def potw2(x1, x2):
+    return ot.solve_sample(x1, x2).value
+
+
+def compute_wasserstein_time_pot(test_sol, true_sol, n_samples=None, sub_t=1, seed=0, jax=True):
+    T = test_sol.shape[0]
+    N = test_sol.shape[1]
+    if n_samples is None:
+        n_samples = N
+
+    rng = np.random.default_rng(seed)
+    t_list = np.arange(1, T, sub_t)
+
+    # Pre-sample indices once (shape: [num_t, n_samples])
+    idx = np.stack([rng.choice(N, size=n_samples, replace=False)
+                   for _ in range(len(t_list))], axis=0)
+
+    out = []
+    for k, t in enumerate(tqdm(t_list, colour="blue")):
+        t_cur = true_sol[t][idx[k]]
+        t_sol = test_sol[t]
+        if jax:
+            t_sol = jnp.asarray(t_sol)
+            t_cur = jnp.asarray(t_cur)
+        d = potw2(t_sol, t_cur)
+        out.append(d)
+
+    return np.asarray(out)
 
 
 def average_metrics():

@@ -1,6 +1,7 @@
 outputs
 envgmfm/
 results
+olddata
 .vscode
 .svn
 *.egg-info

@@ -19,6 +19,10 @@ class DNN(nn.Module):
     def __call__(self,  x, time, mu):
 
         x_shape = x.shape
+        if x.ndim == 1:
+            x = x[None]
+        if time.ndim == 1:
+            time = time[None]
         x = rearrange(x, 'B ... -> B (...)')
 
         A = nn.gelu
@@ -82,7 +86,7 @@ class DNN(nn.Module):
                 xs.append(x_c)
             x = jnp.asarray(xs)
 
-        x = x.reshape(x_shape)
+        x = x.reshape((*x_shape[:-1], self.out_features))
 
         return x
 
