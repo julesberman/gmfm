@@ -10,7 +10,7 @@ from gmfm.loss.rff import (
     rff_laplace_phi,
     rff_phi,
 )
-from gmfm.utils.tools import pshape
+from gmfm.utils.tools import pshape, time_total_derivative
 
 
 def make_gmfm_loss(cfg: Config, apply_fn):
@@ -24,6 +24,9 @@ def make_gmfm_loss(cfg: Config, apply_fn):
 
     grad_fn = rff_grad_dot_v
     lap_fn = rff_laplace_phi
+
+    dv_dt = time_total_derivative(lambda p, x, t, mu: apply_fn(
+        p, x, t, mu), argnum_x=1, argnum_t=2, stopgrad_dx=True)
 
     def loss_fn(params, x_t, t, omegas, lhs, mu, xtp1_batch, dt, key):
         final_loss = 0.0
@@ -100,13 +103,12 @@ def make_gmfm_loss(cfg: Config, apply_fn):
             final_loss = final_loss + reg_kin * kin_loss
 
         if reg_traj > 0:
-            xp1_pred = x_t + dt*v_t
-            err = xp1_pred - xtp1_batch
-            pshape(xp1_pred, xtp1_batch, dt)
-            traj_loss = jnp.mean(jnp.sum(err ** 2, axis=-1)) / \
-                jnp.mean(jnp.sum(xtp1_batch ** 2, axis=-1))
+            key_time, _ = jax.random.split(key, 2)
+            dv = dv_dt(params, x_t, t, mu, key=key_time, material=True)
+            traj_loss = jnp.mean(jnp.sum(dv * dv, axis=-1))
             aux['traj'] = traj_loss
             final_loss = final_loss + reg_traj * traj_loss
+
         return final_loss, aux
 
     return loss_fn

@@ -72,4 +72,4 @@ def run_test(cfg: Config, apply_fn, opt_params, x_data, cur_mu, key, label=''):
         pshape(x_true, x_pred)
         compute_metrics(cfg, x_pred, x_true, label=label)
 
-    return x_pred
+    return x_true, x_pred

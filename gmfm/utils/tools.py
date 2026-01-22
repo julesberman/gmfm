@@ -495,3 +495,48 @@ def print_ndarray(
 
     # Title on same line before the opening bracket; array continues nicely on new lines.
     print(prefix + "[\n" + "\n".join(lines) + "\n]")
+
+
+def time_total_derivative(f, argnum_x: int = 1, argnum_t: int = 2, stopgrad_dx: bool = True):
+    """
+    Builds a function dt(*args, key, material=True, return_fwd=False) returning:
+      - partial time derivative: ∂_t f          if material=False
+      - material derivative:     ∂_t f + J_x f * f   if material=True
+
+    Shapes:
+      - x: (d,) or (b,d)
+      - t: (1,) or (b,1)
+      - output: same shape as f(x,t) i.e. (d,) or (b,d)
+
+    stopgrad_dx=True treats dx direction (v) as constant when differentiating the penalty,
+    which avoids higher-order effects through the tangent direction.
+    """
+
+    @partial(jax.jit, static_argnames=("material", "return_fwd"))
+    def dt(*args, key=None, material: bool = True, return_fwd: bool = False):
+        x = args[argnum_x]
+        t = args[argnum_t]
+
+        def g(x_arg, t_arg):
+            new_args = list(args)
+            new_args[argnum_x] = x_arg
+            new_args[argnum_t] = t_arg
+            return f(*new_args)
+
+        # f_xt is primal, lin maps (dx,dt) -> J_x*dx + J_t*dt
+        f_xt, lin = jax.linearize(g, x, t)
+
+        dt_dir = jnp.ones_like(t)              # time tangent = 1
+        if material:
+            # flow direction = v itself (same shape as x)
+            dx_dir = f_xt
+            if stopgrad_dx:
+                dx_dir = jax.lax.stop_gradient(dx_dir)
+        else:
+            dx_dir = jnp.zeros_like(x)         # fixed-x: no spatial movement
+
+        df_dt = lin(dx_dir, dt_dir)            # (b,d) or (d,)
+
+        return (df_dt, f_xt) if return_fwd else df_dt
+
+    return dt
