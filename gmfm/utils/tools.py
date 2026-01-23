@@ -540,3 +540,45 @@ def time_total_derivative(f, argnum_x: int = 1, argnum_t: int = 2, stopgrad_dx: 
         return (df_dt, f_xt) if return_fwd else df_dt
 
     return dt
+
+
+def hutch_frob_jac(f, argnum: int = 0):
+    """
+    Single-probe Hutchinson estimator for squared Frobenius norm of Jacobian:
+        || J_f(x) ||_F^2 = tr(J^T J) = E_v ||J v||^2,  v ~ Rademacher
+
+    Supports:
+      - f: R^d -> R^d           (x.shape = (d,))
+      - f: R^{b,d} -> R^{b,d}   (x.shape = (b,d))
+
+    Returns frob(*args, key, return_fwd=False) whose output is:
+      - frob_est                    if return_fwd=False
+      - (frob_est, f_x)             if return_fwd=True
+
+    Shapes:
+      - frob_est: () or (b,)
+      - f_x:      (d,) or (b, d)
+    """
+
+    @partial(jax.jit, static_argnames=("return_fwd",))
+    def frob(*args, key, return_fwd: bool = False):
+        x = args[argnum]
+
+        def g(x_arg):
+            new_args = list(args)
+            new_args[argnum] = x_arg
+            return f(*new_args)
+
+        # primal + cached linear map v ↦ J(x)v
+        f_x, lin = jax.linearize(g, x)
+
+        # single Hutch probe (Rademacher)
+        v = jax.random.rademacher(key, shape=x.shape, dtype=x.dtype)
+        jvp_val = lin(v)  # = J(x) v
+
+        # squared norm of Jv per sample: () or (b,)
+        frob_est = jnp.sum(jvp_val * jvp_val, axis=-1)
+
+        return (frob_est, f_x) if return_fwd else frob_est
+
+    return frob

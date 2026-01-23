@@ -10,15 +10,15 @@ from gmfm.loss.rff import (
     rff_laplace_phi,
     rff_phi,
 )
-from gmfm.utils.tools import pshape, time_total_derivative
+from gmfm.utils.tools import pshape, time_total_derivative, hutch_frob_jac
 
 
 def make_gmfm_loss(cfg: Config, apply_fn):
 
     sigma = cfg.loss.sigma
-    reg_kin = cfg.loss.reg_kin
-    reg_traj = cfg.loss.reg_traj
-    relative = cfg.loss.relative
+    reg_amt = cfg.loss.reg_amt
+    reg_type = cfg.loss.reg_type
+
     normalize = cfg.loss.normalize
     has_mu = cfg.data.has_mu
 
@@ -64,13 +64,6 @@ def make_gmfm_loss(cfg: Config, apply_fn):
             w = jnp.clip(w, 0.0, 1e3)                          # optional
             w = jax.lax.stop_gradient(w)
             final_loss = jnp.sum(w * err2) / (jnp.sum(w * lhs**2) + 1e-8)
-        elif normalize == 'dt':
-            h = 2.0 * dt
-            lhs = lhs*h
-            err2 = (lhs - h*rhs)**2
-            den = jnp.mean(lhs**2) + (h)**2 * jnp.mean(rhs**2)
-            den = jax.lax.stop_gradient(den)
-            final_loss = jnp.mean(err2) / (den + 1e-8)
         elif normalize == 'lhs':
             err2 = (lhs - rhs)**2
             den = jnp.mean(lhs**2)
@@ -97,17 +90,27 @@ def make_gmfm_loss(cfg: Config, apply_fn):
         aux['t'] = jnp.mean(t)
         aux['dt'] = jnp.mean(dt)
 
-        if reg_kin > 0:
-            kin_loss = jnp.mean(jnp.sum(v_t ** 2, axis=-1))
-            aux['kin'] = kin_loss
-            final_loss = final_loss + reg_kin * kin_loss
+        if reg_amt > 0:
+            if reg_type == 'kin':
+                kin_loss = jnp.mean(jnp.sum(v_t ** 2, axis=-1))
+                aux['kin'] = kin_loss
+                final_loss = final_loss + reg_amt * kin_loss
 
-        if reg_traj > 0:
-            key_time, _ = jax.random.split(key, 2)
-            dv = dv_dt(params, x_t, t, mu, key=key_time, material=True)
-            traj_loss = jnp.mean(jnp.sum(dv * dv, axis=-1))
-            aux['traj'] = traj_loss
-            final_loss = final_loss + reg_traj * traj_loss
+            if reg_type == 'traj':
+                key_time, _ = jax.random.split(key, 2)
+                dv = dv_dt(params, x_t, t, mu, key=key_time, material=True)
+                traj_loss = jnp.mean(jnp.sum(dv * dv, axis=-1))
+                aux['traj'] = traj_loss
+                final_loss = final_loss + reg_amt * traj_loss
+
+            if reg_type == 'grad':
+                def v_of_xt(xt_, t_):
+                    return apply_fn(params, xt_, t_, mu)  # (B,D)
+                frob_reg = hutch_frob_jac(v_of_xt, argnum=0)
+                frob_per_sample = frob_reg(x_t, t, key=key)
+                smooth_pen = jnp.mean(frob_per_sample)  # scalar ≈ E[||J||_F^2]
+                aux['grad'] = smooth_pen
+                final_loss = final_loss + reg_amt * smooth_pen
 
         return final_loss, aux
 

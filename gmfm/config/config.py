@@ -67,13 +67,12 @@ class Loss:
     b_max: float = -1
     n_bands: int = 100
     n_functions: int = 10_000
-    dt_sm: float = 0.0
-    reg_kin: float = 0.0
-    reg_smt: float = 0.0
-    reg_traj: float = 0.0
+    dt_sm: float = 1e-5
+    reg_amt: float = 0.0
+    reg_type: str = 'kin'
     relative: bool = True
     stride: int = 1
-    dt: str = 'cubic'
+    dt: str = 'sm_spline'
     nt_interp: None | int = None
     normalize: None | str = None
     resample: bool = False
@@ -218,9 +217,10 @@ vtwo_cfg = Config(
     dataset="vbump",
     net=Network(arch='mlp'),
     optimizer=Optimizer(pbar_delay=50),
-    data=Data(normalize=True, norm_method='-11', sub_t=1, has_mu=True),
+    data=Data(normalize=True, norm_method='-11', sub_t=4, has_mu=True),
     sample=Sample(bs_n=-1, bs_o=-1),
-    loss=Loss(n_functions=50_000, relative=True, b_min=0.005, b_max=1.0),
+    loss=Loss(n_functions=50_000, b_min=0.05, b_max=0.5,
+              normalize='sym', sigma=5e-2, reg_amt=1e-2),
     test=Test(n_samples=-1, test_idx=[1, 8]),
     integrate=Integrate(boundary='period')
 
@@ -231,10 +231,10 @@ vtwo_cfg = Config(
     dataset="vtwo",
     net=Network(arch='mlp'),
     optimizer=Optimizer(pbar_delay=50),
-    data=Data(normalize=True, norm_method='-11', sub_t=1, has_mu=True),
+    data=Data(normalize=True, norm_method='-11', sub_t=4, has_mu=True),
     sample=Sample(bs_n=-1, bs_o=-1),
-    loss=Loss(n_functions=25_000, relative=True, bandwidths=[
-              0.5, 0.1, 0.05, 0.01], sigma=5e-2, reg_kin=1e-2),
+    loss=Loss(n_functions=50_000, b_min=0.05, b_max=0.5,
+              normalize='sym', sigma=5e-2, reg_amt=1e-2),
     test=Test(n_samples=-1, test_idx=[1, 8]),
     integrate=Integrate(boundary='period')
 
@@ -250,7 +250,7 @@ vtwo_cfg = Config(
               sub_t=1, has_mu=True, n_samples=25_000),
     sample=Sample(bs_n=-1, bs_o=-1),
     loss=Loss(n_functions=100_000, relative=True, b_min=0.1,
-              b_max=0.5, sigma=5e-2, reg_kin=1e-2, normalize='omega'),
+              b_max=0.5, sigma=5e-2, reg_amt=1e-2, normalize='sym'),
     test=Test(n_samples=-1, test_idx=[2]),
     integrate=Integrate(boundary='period')
 )
