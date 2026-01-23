@@ -70,7 +70,7 @@ def compute_metrics(cfg: Config, x_pred, x_true, label):
         print(f"computing wasserstein")
 
         w_time = compute_wasserstein_time_pot(
-            x_true, x_pred, n_samples=None, sub_t=16)
+            x_true, x_pred, n_samples=None, sub_t=20)
 
         R.RESULT[f"time_wass_dist_{label}"] = w_time
         mean_w_dist = np.mean(w_time)
