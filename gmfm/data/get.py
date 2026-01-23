@@ -38,31 +38,28 @@ def get_dataset(cfg: Config, key):
             n_samples, n_t, n_x, key, batch_size=32, sigma=cfg.data.alpha
         )
         x_data = x_data[:, ::sub_t, ::sub_x, ::sub_x, None]
-
     elif problem == "adv":
         x_data = get_adv_data(n_samples, sub_t, sub_x)
-
     elif problem == "lanl":
         x_data = get_lanl_clean(sub_x, sub_t)
         x_data = x_data[..., None]
-
     elif problem == "lz9":
         t_eval = np.linspace(0, 20.0, n_t)
         x_data = get_lz9_data(n_samples, t_eval, skey)
     elif problem == "turb":
         x_data = get_turb_samples(n_samples, only_vort=True)
     elif problem == "vtwo":
-        path = "/scratch/jmb1174/data_hoam/sde/vtwo.pkl"
+        path = "/home/jmb1174/sc/gmfm/data/vtwo.pkl"
         x_data, mu_data = get_hoam_data(path)
         x_data = rearrange(x_data, 'M T N D -> M N T D')
         x_data = x_data[:, :, ::sub_t]
     elif problem == "vbump":
-        path = "/scratch/jmb1174/data_hoam/sde/vbump.pkl"
+        path = "/home/jmb1174/sc/gmfm/data/vbump.pkl"
         x_data, mu_data = get_hoam_data(path)
         x_data = rearrange(x_data, 'M T N D -> M N T D')
         x_data = x_data[:, :, ::sub_t]
     elif problem == "v6":
-        path = "/scratch/jmb1174/data_hoam/v6_np/v6_5traj.pkl"
+        path = "/home/jmb1174/sc/gmfm/data/v6_5traj.pkl"
         x_data, mu_data = get_hoam_data(path)
         x_data = rearrange(x_data, 'M T N D -> M N T D')
         x_data = x_data[:, :, ::sub_t]

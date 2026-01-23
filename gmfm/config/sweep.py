@@ -1,19 +1,20 @@
 
 SWEEP = {
-    "dataset": "vtwo",
+    "dataset": "v6",
     "net.size": "l",
     "optimizer.pbar_delay": "100",
-    "optimizer.iters": "500_000",
+    "optimizer.iters": "250_000",
+    # "loss.relative": "True, False",
     "loss.normalize": "sym",
-    "loss.b_min": "0.05",
+    # "loss.resample":z "True, False",
+    "loss.b_min": "0.1",
     "loss.b_max": "0.5",
     "loss.dt": 'sm_spline',
     "loss.dt_sm": '1e-5',
-    "loss.n_functions": "50_000",
-    "loss.sigma": "1e-2, 5e-2, 1e-1, 2e-1",
-    "loss.reg_kin": "0.0, 1e-3, 1e-2, 1e-1",
-    "loss.reg_traj": "0.0",
-    "data.sub_t": "4"
+    "loss.n_functions": "50_000, 100_000",
+    "loss.sigma": "5e-2",
+    "loss.reg_kin": "1e-3",
+    "data.sub_t": "1"
 }
 
 
@@ -49,11 +50,13 @@ def get_sweep():
 
 
 SLURM_CONFIG_T = {
-    "timeout_min": 60 * 12,
-    "cpus_per_task": 16,
-    "mem_gb": 100,
+    "timeout_min": 60 * 16,
+    "cpus_per_task": 4,
+    "mem_gb": 50,
     "gres": "gpu:1",
-    "account": "torch_pr_34_bpeher",
+    "account": "extremedata",
+    "partition": "gpu",
+
 }
 
 
