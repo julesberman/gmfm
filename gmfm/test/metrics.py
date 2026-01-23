@@ -70,7 +70,7 @@ def compute_metrics(cfg: Config, x_pred, x_true, label):
         print(f"computing wasserstein")
 
         w_time = compute_wasserstein_time_pot(
-            x_true, x_pred, n_samples=None, sub_t=8)
+            x_true, x_pred, n_samples=None, sub_t=16)
 
         R.RESULT[f"time_wass_dist_{label}"] = w_time
         mean_w_dist = np.mean(w_time)
@@ -283,7 +283,7 @@ def potw2(x1, x2):
     return ot.solve_sample(x1, x2).value
 
 
-def compute_wasserstein_time_pot(test_sol, true_sol, n_samples=None, sub_t=1, seed=0, jax=True):
+def compute_wasserstein_time_pot(test_sol, true_sol, n_samples=None, sub_t=1, seed=0):
     T = test_sol.shape[0]
     N = test_sol.shape[1]
     if n_samples is None:
@@ -300,9 +300,8 @@ def compute_wasserstein_time_pot(test_sol, true_sol, n_samples=None, sub_t=1, se
     for k, t in enumerate(tqdm(t_list, colour="blue")):
         t_cur = true_sol[t][idx[k]]
         t_sol = test_sol[t]
-        if jax:
-            t_sol = jnp.asarray(t_sol)
-            t_cur = jnp.asarray(t_cur)
+        t_sol = np.asarray(t_sol, dtype=np.float32)
+        t_cur = np.asarray(t_cur, dtype=np.float32)
         d = potw2(t_sol, t_cur)
         out.append(d)
 
