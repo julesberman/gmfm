@@ -15,6 +15,7 @@ class Network:
     size: str = "m"
     emb_features: list[int] = field(default_factory=lambda: [512, 512])
     residual: bool = False
+    n_harmonics: int = 0
 
 
 @dataclass
@@ -76,7 +77,7 @@ class Loss:
     nt_interp: None | int = None
     normalize: None | str = None
     resample: bool = False
-    omega_rho: str = 'gauss'  # gauss, orf
+    omega_rho: str = 'gauss'  # gauss, orf, periodic
     # method of approximation
     # 'cubic': C1 cubic splines (aka local splines)
     # 'cubic2': C2 cubic splines. Can also pass kwarg bc_type, same as scipy.interpolate.CubicSpline
@@ -166,14 +167,27 @@ cs.store(name="toy", node=toy_cfg)
 
 wave_cfg = Config(
     dataset="wave",
-    data=Data(sub_x=4, sub_t=1, n_samples=1024),
-    sample=Sample(bs_n=128, bs_o=5_000),
-    loss=Loss(n_functions=50_000, relative=True,
-              bandwidths=[5.0, 1.0, 0.5, 0.1, 0.05])
+    data=Data(sub_x=2, sub_t=1, n_samples=1024,
+              normalize=True, norm_method='-11'),
+    sample=Sample(bs_n=32, bs_o=-1),
+    loss=Loss(n_functions=50_000, b_min=0.5, b_max=4.0,
+              normalize='sym', reg_amt=0.0),
+    test=Test(n_samples=16)
 
 )
 cs.store(name="wave", node=wave_cfg)
 
+turb_cfg = Config(
+    dataset="turb",
+    data=Data(sub_x=1, sub_t=1, n_samples=1024,
+              normalize=True, norm_method='-11'),
+    sample=Sample(bs_n=32, bs_o=-1),
+    loss=Loss(n_functions=50_000, b_min=0.1, b_max=1.0,
+              normalize='sym', reg_amt=0.0),
+    test=Test(n_samples=16)
+
+)
+cs.store(name="turb", node=turb_cfg)
 
 adv_cfg = Config(
     dataset="adv",
@@ -199,18 +213,6 @@ lz9_cfg = Config(
 
 )
 cs.store(name="lz9", node=lz9_cfg)
-
-
-turb_cfg = Config(
-    dataset="turb",
-    data=Data(sub_x=1, sub_t=1, n_samples=4096,
-              normalize=True, norm_method='-11'),
-    sample=Sample(bs_n=256, bs_o=-1, replace=False),
-    loss=Loss(n_functions=200_000, relative=True,
-              bandwidths=[16.0])
-
-)
-cs.store(name="turb", node=turb_cfg)
 
 
 vtwo_cfg = Config(
@@ -249,7 +251,7 @@ vtwo_cfg = Config(
     data=Data(normalize=True, norm_method='-11',
               sub_t=1, has_mu=True, n_samples=25_000),
     sample=Sample(bs_n=-1, bs_o=-1),
-    loss=Loss(n_functions=100_000, relative=True, b_min=0.1,
+    loss=Loss(n_functions=50_000, relative=True, b_min=0.1,
               b_max=0.5, sigma=5e-2, reg_amt=1e-2, normalize='sym'),
     test=Test(n_samples=-1, test_idx=[2]),
     integrate=Integrate(boundary='period')

@@ -32,10 +32,10 @@ def make_gmfm_loss(cfg: Config, apply_fn):
         final_loss = 0.0
         aux = {}
 
-        if has_mu:
-            v_t = apply_fn(params, x_t, t, mu)
-        else:
-            v_t = apply_fn(params, x_t, t, None)
+        if not has_mu:
+            mu = None
+
+        v_t = apply_fn(params, x_t, t, mu)
 
         v_t = rearrange(v_t, 'N ... -> N (...)')
         x_t = rearrange(x_t, 'N ... -> N (...)')

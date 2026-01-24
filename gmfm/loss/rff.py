@@ -65,6 +65,10 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
     if omega_rho == 'orf':
         fixed_params = make_rff_params_orf(
             kpn, n_functions, D, bandwidths)  # omega: (M,D)
+    if omega_rho == 'periodic':
+        fixed_params = make_rff_params_periodic(
+            kpn, n_functions, D, bandwidths)  # omega: (M,D)
+
     # ---- precompute mu_t for all times: mu[t] = E[phi(X_t)] ----
     pbar_mu = tqdm(range(T), desc='precompute moments', colour="#306EFF")
     mu_list = []
@@ -142,6 +146,60 @@ def get_dt_finite_difference(mu, t_data, stride):
     lhs_data = np.stack(lhs_list, axis=0)  # (T, 2M)
 
     return lhs_data
+
+
+def make_rff_params_periodic(
+    key,
+    M_total: int,
+    D: int,
+    sigmas,
+):
+    """
+    Periodic RFF frequency generator for domain [-1, 1]^D (period 2 in each coord).
+
+    Same API/shape as your original function, but returns omega constrained to
+    the periodic lattice: omega = pi * k,  k in Z^D.
+
+    Parameters
+    ----------
+    key : int | np.random.Generator
+        RNG seed (int) or an existing NumPy Generator.
+    M_total : int
+        Total number of random frequencies.
+    D : int
+        Input dimension.
+    sigmas : float or array-like of shape (L,)
+        If array, splits M_total approximately evenly across sigmas.
+
+    Returns
+    -------
+    omega : np.ndarray of shape (M_total, D), with entries in pi * Z
+    """
+    rng = key if isinstance(
+        key, np.random.Generator) else np.random.default_rng(key)
+
+    sigmas = np.atleast_1d(np.asarray(sigmas, dtype=np.float32))
+    if sigmas.ndim != 1:
+        raise ValueError("sigmas must be a scalar or 1D array-like.")
+
+    L = sigmas.shape[0]
+
+    M_base = M_total // L
+    rem = M_total - M_base * L
+    counts = M_base + (np.arange(L) < rem).astype(np.int32)
+
+    # Continuous Gaussian frequencies as in standard (non-periodic) RFF for RBF:
+    base = rng.standard_normal((M_total, D), dtype=np.float32)
+    sigma_per = np.repeat(sigmas, repeats=counts).astype(
+        np.float32)  # (M_total,)
+    omega_cont = base / sigma_per[:, None]  # (M_total, D)
+
+    # Project to the torus lattice for period 2: omega_l must be in pi*Z
+    # nearest integer lattice index
+    k = np.rint(omega_cont / np.pi).astype(np.int32)
+    omega = (np.pi * k).astype(np.float32)
+
+    return omega
 
 
 def make_rff_params(

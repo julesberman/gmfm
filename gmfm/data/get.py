@@ -49,12 +49,12 @@ def get_dataset(cfg: Config, key):
     elif problem == "turb":
         x_data = get_turb_samples(n_samples, only_vort=True)
     elif problem == "vtwo":
-        path = "/home/jmb1174/sc/gmfm/data/sde/vtwo.pkl"
+        path = "/home/jmb1174/sc/gmfm/data/vtwo.pkl"
         x_data, mu_data = get_hoam_data(path)
         x_data = rearrange(x_data, 'M T N D -> M N T D')
         x_data = x_data[:, :, ::sub_t]
     elif problem == "vbump":
-        path = "/home/jmb1174/sc/gmfm/data/sde/vbump.pkl"
+        path = "/home/jmb1174/sc/gmfm/data/vbump.pkl"
         x_data, mu_data = get_hoam_data(path)
         x_data = rearrange(x_data, 'M T N D -> M N T D')
         x_data = x_data[:, :, ::sub_t]

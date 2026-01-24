@@ -86,6 +86,13 @@ def solve_wave_equation(Tend, dt, N, ic_field, speed):
     return sol
 
 
+def norm_01(x):
+    mn = x.min()
+    mx = x.max()
+    shift, scale = mn, (mx - mn)
+    return (x - shift) / scale
+
+
 def get_wave_random_media(n_samples, t_pts, x_pts, key, batch_size=32, sigma=None):
     skey, sskey = jax.random.split(key)
     keys = jax.random.split(skey, num=n_samples)
@@ -105,7 +112,7 @@ def get_wave_random_media(n_samples, t_pts, x_pts, key, batch_size=32, sigma=Non
             key, grid, max_velocity, peak_wavenumber
         )
         v0 = cfd.finite_differences.curl_2d(v0).data
-        v0, _ = normalize(v0, method="01")
+        v0 = norm_01(v0)
         return v0
 
     s_fields = vmap(get_speed_field)(keys)
@@ -119,7 +126,7 @@ def get_wave_random_media(n_samples, t_pts, x_pts, key, batch_size=32, sigma=Non
             key, grid, max_velocity, peak_wavenumber
         )
         v0 = cfd.finite_differences.curl_2d(v0).data
-        v0, _ = normalize(v0, method="01")
+        v0 = norm_01(v0)
         return v0
     ic_fields = vmap(ic_fn)(keys2)
 
