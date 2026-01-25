@@ -61,15 +61,17 @@ def run_test(cfg: Config, apply_fn, opt_params, x_data, cur_mu, key, label=''):
             plot_spde(cfg, x_pred, x_true)
         else:
             plot_sde(cfg, x_pred, x_true, label=label)
-
+    stats = R.RESULT['normalize_values']
+    x_pred = unnormalize(x_pred, stats)
+    x_true = unnormalize(x_true, stats)
+    x_pred = jnp.squeeze(x_pred)
+    x_true = jnp.squeeze(x_true)
     if cfg.test.metrics:
-
-        stats = R.RESULT['normalize_values']
-        x_pred = unnormalize(x_pred, stats)
-        x_true = unnormalize(x_true, stats)
-        x_pred = jnp.squeeze(x_pred)
-        x_true = jnp.squeeze(x_true)
         pshape(x_true, x_pred)
         compute_metrics(cfg, x_pred, x_true, label=label)
+
+    if cfg.test.save_trajectories:
+        R.RESULT[f'x_pred_{label}'] = x_pred
+        R.RESULT[f'x_true_{label}'] = x_true
 
     return x_true, x_pred

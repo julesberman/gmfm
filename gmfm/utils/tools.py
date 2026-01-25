@@ -582,3 +582,48 @@ def hutch_frob_jac(f, argnum: int = 0):
         return (frob_est, f_x) if return_fwd else frob_est
 
     return frob
+
+
+def hutch_diag_jac(f, argnum: int = 0):
+    """
+    Single-probe estimator for diagonal-Jacobian penalty:
+        penalty(x) ≈ || diag(J_f(x)) ||_2^2
+
+    Supports:
+      - f: R^d -> R^d           (x.shape = (d,))
+      - f: R^{b,d} -> R^{b,d}   (x.shape = (b,d))
+
+    Returns diag_pen(*args, key, return_fwd=False) whose output is:
+      - pen_est                    if return_fwd=False
+      - (pen_est, f_x)             if return_fwd=True
+
+    Shapes:
+      - pen_est: () or (b,)
+      - f_x:     (d,) or (b, d)
+    """
+
+    @partial(jax.jit, static_argnames=("return_fwd",))
+    def diag_pen(*args, key, return_fwd: bool = False):
+        x = args[argnum]
+
+        def g(x_arg):
+            new_args = list(args)
+            new_args[argnum] = x_arg
+            return f(*new_args)
+
+        # primal + cached linear map v ↦ J(x)v
+        f_x, lin = jax.linearize(g, x)
+
+        # one Hutch probe (Rademacher)
+        r = jax.random.rademacher(key, shape=x.shape, dtype=x.dtype)
+        jvp_val = lin(r)  # = J(x) r
+
+        # diag(J) estimator (single probe): r ⊙ (Jr)
+        diag_est = r * jvp_val  # (d,) or (b,d)
+
+        # penalty per sample: sum_i (diag_est_i)^2
+        pen_est = jnp.sum(diag_est * diag_est, axis=-1)  # () or (b,)
+
+        return (pen_est, f_x) if return_fwd else pen_est
+
+    return diag_pen

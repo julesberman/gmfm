@@ -1,54 +1,39 @@
 
 # SWEEP = {
-#     "dataset": "vtwo",
-#     "net.size": "l",
+#     "dataset": "vbump",
+#     "net.size": "m, l",
+#     "net.n_harmonics": "4, 7",
 #     "optimizer.pbar_delay": "100",
-#     "optimizer.iters": "400_000",
+#     "optimizer.iters": "750_000",
 #     "loss.normalize": "sym",
-#     # "loss.b_min": "0.05, 0.1",
-#     # "loss.b_max": "0.5",
+#     "loss.b_min": "0.05",
+#     "loss.b_max": "1.0",
 #     "loss.dt": 'sm_spline',
 #     "loss.dt_sm": '1e-5',
-#     "loss.n_functions": "50_000",
+#     "loss.n_functions": "100_000",
 #     "loss.sigma": "5e-2",
-#     "loss.reg_amt": "0.0, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0",
-#     "loss.reg_type": "kin, traj, grad",
+#     "loss.reg_amt": "1e-2",
+#     "loss.reg_type": "kin",
+#     "loss.omega_rho": "periodic",
+#     "test.save_trajectories": "True"
 # }
 
 SWEEP = {
-    "dataset": "v6",
-    "net.size": "l",
-    "net.n_harmonics": "0, 1, 2, 4, 8",
-    "optimizer.pbar_delay": "100",
-    "optimizer.iters": "250_000",
+    "dataset": "turb",
+    "net.size": "m",
+    "optimizer.pbar_delay": "200",
+    "optimizer.iters": "25_000",
     "loss.normalize": "sym",
-    "loss.b_min": "0.05, 0.1",
-    "loss.b_max": "0.5, 1.0, 2.0",
+    "loss.b_min": "1, 10, 20, 100",
+    "loss.b_max": "5, 20, 100, 1000",
     "loss.dt": 'sm_spline',
-    "loss.dt_sm": '5e-5',
+    "loss.dt_sm": '0.0, 1e-7, 1e-6, 1e-5',
     "loss.n_functions": "50_000",
-    "loss.sigma": "5e-2",
-    "loss.reg_amt": "1e-3",
+    "loss.sigma": "0.0",
+    "loss.reg_amt": "0.0",
     "loss.reg_type": "kin",
-    "loss.omega_rho": "periodic"
+    "loss.omega_rho": "orf"
 }
-
-
-# SWEEP = {
-#     "dataset": "wave",
-#     "net.size": "m",
-#     "optimizer.pbar_delay": "100",
-#     "optimizer.iters": "100_000",
-#     "loss.normalize": "sym",
-#     "loss.b_min": "5.0",
-#     "loss.b_max": "5.0, 10.0, 20.0",
-#     "loss.dt": 'sm_spline',
-#     "loss.dt_sm": '1e-4',
-#     "loss.n_functions": "50_000",
-#     "loss.sigma": "0.0",
-#     "loss.reg_amt": "0.0",
-#     "loss.reg_type": "kin",
-# }
 
 
 def get_sweep():
@@ -65,7 +50,7 @@ def get_sweep():
 
 
 SLURM_CONFIG_T = {
-    "timeout_min": 60 * 8,
+    "timeout_min": 60 * 18,
     "cpus_per_task": 4,
     "mem_gb": 50,
     "gres": "gpu:1",

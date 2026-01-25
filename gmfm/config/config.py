@@ -182,7 +182,7 @@ turb_cfg = Config(
     data=Data(sub_x=1, sub_t=1, n_samples=1024,
               normalize=True, norm_method='-11'),
     sample=Sample(bs_n=32, bs_o=-1),
-    loss=Loss(n_functions=50_000, b_min=0.1, b_max=1.0,
+    loss=Loss(n_functions=50_000, b_min=1.0, b_max=24.0,
               normalize='sym', reg_amt=0.0),
     test=Test(n_samples=16)
 

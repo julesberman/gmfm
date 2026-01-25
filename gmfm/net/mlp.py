@@ -19,6 +19,7 @@ class DNN(nn.Module):
     n_classes: int = 10
     use_bias: bool = True
     n_harmonics: int = 0
+    period: float = 2.0
 
     @nn.compact
     def __call__(self, x, time, mu):
@@ -31,22 +32,14 @@ class DNN(nn.Module):
 
         x = rearrange(x, 'B ... -> B (...)')  # (B, D_flat)
 
-        # NEW: periodic Fourier feature embedding on [-1,1] (period 2)
-        # Uses harmonics m=1..n_harmonics:
-        #   sin(pi*m*x), cos(pi*m*x)
-        # This guarantees invariance under x -> x + 2 e_i for each coordinate.
         if self.n_harmonics > 0:
             H = int(self.n_harmonics)
             m = jnp.arange(1, H + 1, dtype=x.dtype)              # (H,)
-            # (B, D_flat, H)
-            xm = x[..., None] * m[None, None, :]
-            # (B, D_flat, H)
-            ang = jnp.pi * xm
-
+            xm = x[..., None] * m[None, None, :]               # (B, D_flat, H)
+            omega0 = (2.0 * jnp.pi / jnp.asarray(self.period, dtype=x.dtype))
+            ang = omega0 * xm                                  # (B, D_flat, H)
             sinx = jnp.sin(ang)
             cosx = jnp.cos(ang)
-
-            # (B, D_flat, 2H) -> (B, D_flat*2H)
             x = jnp.concatenate([sinx, cosx], axis=-1).reshape(x.shape[0], -1)
 
         A = nn.gelu

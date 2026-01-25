@@ -115,8 +115,8 @@ def plot_enstrophy(
     Single plot: ensemble mean enstrophy ± 1σ for true vs pred.
     Enstrophy per sample: Z[n,t] = mean_{x,y}( 0.5 * sum_c omega^2 ).
     """
-    pred_vort = np.asarray(pred_vort)
-    true_vort = np.asarray(true_vort)
+    pred_vort = np.asarray(pred_vort)[..., None]
+    true_vort = np.asarray(true_vort)[..., None]
 
     N, T, H, W, C = pred_vort.shape
     t = np.asarray(times) if times is not None else np.arange(T)

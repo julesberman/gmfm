@@ -47,6 +47,11 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
     # sigma_t = np.asarray(sigma_t)
     # print_ndarray(sigma_t)
 
+    if cfg.loss.b_min > cfg.loss.b_max:
+        print(f'quit b_min b_max, min: {cfg.loss.b_min} max: {cfg.loss.b_max}')
+        quit()
+        return
+
     if cfg.loss.b_min > 0:
         bandwidths = np.exp(np.linspace(
             np.log(cfg.loss.b_min), np.log(cfg.loss.b_max), cfg.loss.n_bands))
@@ -64,7 +69,7 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
             kpn, n_functions, D, bandwidths)  # omega: (M,D)
     if omega_rho == 'orf':
         fixed_params = make_rff_params_orf(
-            kpn, n_functions, D, bandwidths)  # omega: (M,D)
+            k1, n_functions, D, bandwidths)  # omega: (M,D)
     if omega_rho == 'periodic':
         fixed_params = make_rff_params_periodic(
             kpn, n_functions, D, bandwidths)  # omega: (M,D)
@@ -74,11 +79,7 @@ def get_phi_params(cfg: Config, x_data, t_data, key):
     mu_list = []
     for t_idx in pbar_mu:
         xt = x_flat[:, t_idx]  # (N,D)
-        # if N > 25_000:
-        #     mu_t = rff_phi_chunked(xt, fixed_params)  # (2M,)
-        # else:
         mu_t = rff_phi(xt, fixed_params)          # (2M,)
-
         mu_list.append(np.asarray(mu_t))
 
     mu = np.stack(mu_list, axis=0)  # (T, 2M)
