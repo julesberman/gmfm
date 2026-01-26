@@ -7,7 +7,7 @@ from gmfm.test.integrate import sample_model
 from gmfm.test.metrics import compute_metrics
 from gmfm.test.plot import plot_sde, plot_spde
 from gmfm.utils.tools import jax_key_to_np, pshape, unnormalize
-
+from gmfm.train.latent import decode_data
 import jax.numpy as jnp
 
 
@@ -49,11 +49,17 @@ def run_test(cfg: Config, apply_fn, opt_params, x_data, cur_mu, key, label=''):
     # if skip ic
     # t_int = t_int[1:]
     x_0 = x_true[:, 0]
+    pshape(x_0)
     x_pred = sample_model(
         cfg, apply_fn_mu, opt_params, x_0, sigma, t_int, key)
 
     x_pred = np.nan_to_num(
         x_pred, nan=0.0, posinf=1e9, neginf=-1e9)
+
+    if cfg.latent:
+        x_pred = decode_data(x_pred)
+        x_true = decode_data(x_true)
+
     high_dim = x_true.ndim > 3
 
     if plot:

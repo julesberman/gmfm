@@ -22,17 +22,20 @@ SWEEP = {
     "dataset": "turb",
     "net.size": "m",
     "optimizer.pbar_delay": "200",
-    "optimizer.iters": "25_000",
+    "optimizer.iters": "200_000",
     "loss.normalize": "sym",
-    "loss.b_min": "1, 10, 20, 100",
-    "loss.b_max": "5, 20, 100, 1000",
+    "loss.b_min": "0.5, 1.0, 4.0",
+    "loss.b_max": "1.0, 8.0, 16.0",
     "loss.dt": 'sm_spline',
-    "loss.dt_sm": '0.0, 1e-7, 1e-6, 1e-5',
+    "loss.dt_sm": '1e-7, 1e-5',
     "loss.n_functions": "50_000",
     "loss.sigma": "0.0",
     "loss.reg_amt": "0.0",
     "loss.reg_type": "kin",
-    "loss.omega_rho": "orf"
+    "loss.omega_rho": "orf",
+    "sample.bs_n": "-1",
+    "data.sub_x": "1, 2",
+    "latent": "True"
 }
 
 

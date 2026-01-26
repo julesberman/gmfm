@@ -11,6 +11,8 @@ import jax_cfd.base as cfd
 import numpy as np
 from jax_cfd.spectral.equations import NavierStokes2D, ForcedNavierStokes2D
 
+from gmfm.utils.tools import batchvmap
+
 
 def get_turb_samples(n_samples: int, seed: int = 0, only_vort: bool = True):
     """
@@ -23,8 +25,8 @@ def get_turb_samples(n_samples: int, seed: int = 0, only_vort: bool = True):
       meta: dict with grid/domain info
     """
     # Reasonable fixed defaults
-    W = H = 64
-    T = 401
+    W = H = 128
+    T = 300
     inner_steps = 1
 
     density = 1.0
@@ -88,6 +90,7 @@ def get_turb_samples(n_samples: int, seed: int = 0, only_vort: bool = True):
         dv_dx, _ = cfd.finite_differences.central_difference(v_gv)
         return dv_dx.data - du_dy.data  # GridArray.data -> jnp.ndarray (W,H)
 
+    @jax.jit
     def simulate_one(key):
         k_init, k_force = jax.random.split(key)
 
@@ -117,24 +120,20 @@ def get_turb_samples(n_samples: int, seed: int = 0, only_vort: bool = True):
                              axis=0)           # (T,W,H)
 
         vel = jnp.stack([u, vv], axis=-1)  # (T,W,H,2)
-        return vel, om
+        return om
 
     master = jax.random.PRNGKey(seed)
     keys = jax.random.split(master, n_samples)
 
-    simulate_many = jax.jit(jax.vmap(simulate_one))
-    vel, vort = simulate_many(keys)  # vel: (N,T,W,H,2), vort: (N,T,W,H)
+    simulate_many = batchvmap(
+        simulate_one, batch_size=32, pbar=True, to_numpy=True)
+    vort = simulate_many(keys)  # vel: (N,T,W,H,2), vort: (N,T,W,H)
 
     vort = vort[..., None]
 
     if only_vort:
-        del vel
         vort_np = np.array(jax.device_get(vort))
         return vort_np
-    else:
-        vel_np = np.array(jax.device_get(vel))
-        vort_np = np.array(jax.device_get(vort))
-        return vel_np, vort_np
 
 
 def get_particles(tau, N, T, viscosity, max_velocity, resolution, key):

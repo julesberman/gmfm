@@ -17,6 +17,7 @@ from gmfm.train.train import train_model
 import numpy as np
 from gmfm.test.metrics import average_metrics
 from gmfm.io.load import load
+from gmfm.train.latent import train_autoencoder, encode_data
 
 
 @hydra.main(version_base=None, config_name="default")
@@ -60,6 +61,11 @@ def build(cfg: Config):
     key, net_key, d_key, p_key = jax.random.split(key, num=4)
 
     x_data, t_data, mu_data = get_dataset(cfg, d_key)
+
+    if cfg.latent:
+        _ = train_autoencoder(x_data)
+        x_data = encode_data(x_data)
+        print('encoded shape:', x_data.shape)
 
     if cfg.data.has_mu:
         lhs_data, moments = [], []

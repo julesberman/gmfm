@@ -105,6 +105,7 @@ class Config:
     dataset: str = 'wave'
     dump: bool = True
 
+    latent: bool = False
     retest: str | None = None
 
     net: Network = field(default_factory=Network)
@@ -179,9 +180,9 @@ cs.store(name="wave", node=wave_cfg)
 
 turb_cfg = Config(
     dataset="turb",
-    data=Data(sub_x=1, sub_t=1, n_samples=1024,
+    data=Data(sub_x=2, sub_t=1, n_samples=512,
               normalize=True, norm_method='-11'),
-    sample=Sample(bs_n=32, bs_o=-1),
+    sample=Sample(bs_n=-1, bs_o=-1),
     loss=Loss(n_functions=50_000, b_min=1.0, b_max=24.0,
               normalize='sym', reg_amt=0.0),
     test=Test(n_samples=16)
@@ -193,10 +194,9 @@ adv_cfg = Config(
     dataset="adv",
     data=Data(sub_x=2, sub_t=1, n_samples=1024,
               normalize=True, norm_method='-11'),
-    sample=Sample(bs_n=256, bs_o=-1, replace=False),
-    loss=Loss(n_functions=200_000, relative=True,
-              bandwidths=[8.0])
-
+    sample=Sample(bs_n=64, bs_o=-1, replace=False),
+    loss=Loss(n_functions=50_000, b_min=6.0, b_max=10.0,
+              normalize='sym', reg_amt=1e-2),
 )
 cs.store(name="adv", node=adv_cfg)
 
