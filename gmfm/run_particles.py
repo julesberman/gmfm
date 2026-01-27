@@ -381,7 +381,7 @@ def get_loss_fn_rff(
             curl = J[:, 1, 0] - J[:, 0, 1]  # (B,)
 
             # Encourage having curl by maximizing E[curl^2]
-            final_loss = final_loss - lambda_curl * jnp.mean(curl**2)
+            final_loss = final_loss + lambda_curl * jnp.mean(curl**2)
 
         return final_loss
 

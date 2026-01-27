@@ -627,3 +627,105 @@ def hutch_diag_jac(f, argnum: int = 0):
         return (pen_est, f_x) if return_fwd else pen_est
 
     return diag_pen
+
+
+def hutch_antisym_frob(f, argnum: int = 0):
+    """
+    Single-probe Hutchinson estimator for squared Frobenius norm of the
+    antisymmetric part of the Jacobian of f wrt argument `argnum`:
+
+        A(x) = 0.5 * (J(x) - J(x)^T)
+        ||A(x)||_F^2 = E_v ||A(x) v||^2
+
+    Supports:
+      - f: R^d -> R^d           (x.shape = (d,))
+      - f: R^{b,d} -> R^{b,d}   (x.shape = (b,d))  [assumes per-sample mapping]
+
+    Returns anti(*args, key, return_fwd=False):
+      - anti_est            if return_fwd=False
+      - (anti_est, f_x)     if return_fwd=True
+
+    Shapes:
+      - anti_est: () or (b,)
+      - f_x:      (d,) or (b,d)
+    """
+
+    @partial(jax.jit, static_argnames=("return_fwd",))
+    def anti(*args, key, return_fwd: bool = False):
+        x = args[argnum]
+
+        def g(x_arg):
+            new_args = list(args)
+            new_args[argnum] = x_arg
+            return f(*new_args)
+
+        # primal + cached linear map v ↦ J(x) v
+        f_x, lin = jax.linearize(g, x)
+
+        # cached transpose linear map u ↦ J(x)^T u
+        lin_T = jax.linear_transpose(lin, jnp.zeros_like(x))
+
+        # single Hutch probe
+        v = jax.random.rademacher(key, shape=x.shape, dtype=x.dtype)
+
+        jv = lin(v)        # J v
+        jtv = lin_T(v)[0]   # J^T v
+
+        av = 0.5 * (jv - jtv)                 # A v
+        anti_est = jnp.sum(av * av, axis=-1)  # () or (b,)
+
+        return (anti_est, f_x) if return_fwd else anti_est
+
+    return anti
+
+
+def hutch_div2(f, argnum: int = 0, unbiased: bool = True):
+    """
+    Hutchinson-style estimator for divergence penalty.
+
+    For g(x) = f(..., x, ...), x in R^d or R^{b,d}, f outputs same shape as x.
+
+    Returns div2(*args, key, return_fwd=False) whose output is:
+      - div2_est                 if return_fwd=False
+      - (div2_est, f_x)          if return_fwd=True
+
+    Where div2_est estimates:
+      - if unbiased=False:  (div g(x))^2 via (one-probe div_hat)^2  [biased upward]
+      - if unbiased=True:   (div g(x))^2 via div_hat(v1)*div_hat(v2) [unbiased, 2 probes]
+
+    Shapes:
+      - div2_est: () or (b,)
+      - f_x:      (d,) or (b,d)
+    """
+
+    @partial(jax.jit, static_argnames=("return_fwd",))
+    def div2(*args, key, return_fwd: bool = False):
+        x = args[argnum]
+
+        def g(x_arg):
+            new_args = list(args)
+            new_args[argnum] = x_arg
+            return f(*new_args)
+
+        # primal + cached linear map v ↦ J(x) v
+        f_x, lin = jax.linearize(g, x)
+
+        def div_hat(k):
+            v = jax.random.rademacher(k, shape=x.shape, dtype=x.dtype)
+            jv = lin(v)                           # J v
+            # trace(J) estimate: () or (b,)
+            return jnp.sum(v * jv, axis=-1)
+
+        if unbiased:
+            k1, k2 = jax.random.split(key, 2)
+            d1 = div_hat(k1)
+            d2 = div_hat(k2)
+            div2_est = d1 * d2                    # unbiased for (trace J)^2
+        else:
+            d = div_hat(key)
+            # one-probe square (biased upward)
+            div2_est = d * d
+
+        return (div2_est, f_x) if return_fwd else div2_est
+
+    return div2

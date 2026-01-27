@@ -168,9 +168,9 @@ cs.store(name="toy", node=toy_cfg)
 
 wave_cfg = Config(
     dataset="wave",
-    data=Data(sub_x=2, sub_t=1, n_samples=1024,
+    data=Data(sub_x=1, sub_t=1, n_samples=512,
               normalize=True, norm_method='-11'),
-    sample=Sample(bs_n=32, bs_o=-1),
+    sample=Sample(bs_n=-1, bs_o=-1),
     loss=Loss(n_functions=50_000, b_min=0.5, b_max=4.0,
               normalize='sym', reg_amt=0.0),
     test=Test(n_samples=16)
@@ -183,8 +183,8 @@ turb_cfg = Config(
     data=Data(sub_x=2, sub_t=1, n_samples=512,
               normalize=True, norm_method='-11'),
     sample=Sample(bs_n=-1, bs_o=-1),
-    loss=Loss(n_functions=50_000, b_min=1.0, b_max=24.0,
-              normalize='sym', reg_amt=0.0),
+    loss=Loss(n_functions=50_000, b_min=4.0, b_max=18.0,
+              normalize='sym', reg_amt=0.0, dt='sm_spline', dt_sm=1e-6),
     test=Test(n_samples=16)
 
 )

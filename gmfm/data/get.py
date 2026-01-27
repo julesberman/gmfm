@@ -32,7 +32,7 @@ def get_dataset(cfg: Config, key):
     shift, scale = 0.0, 1.0
 
     if problem == "wave":
-        n_t = 64
+        n_t = 128
         n_x = 256
         x_data = get_wave_random_media(
             n_samples, n_t, n_x, key, batch_size=32, sigma=cfg.data.alpha

@@ -64,13 +64,13 @@ AE_CONFIG: Dict[str, Any] = dict(
     # Training
     seed=0,
     batch_size=32,
-    num_epochs=1,
+    num_epochs=3,
     val_fraction=0.05,
     shuffle=True,
     drop_last=True,          # keep batch shapes stable for JIT
 
     # Optimizer / schedule
-    learning_rate=1e-3,
+    learning_rate=5e-4,
     end_lr_ratio=0.05,       # end_lr = lr * end_lr_ratio
     warmup_steps=500,
     weight_decay=1e-4,

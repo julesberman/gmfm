@@ -10,7 +10,7 @@ from gmfm.loss.rff import (
     rff_laplace_phi,
     rff_phi,
 )
-from gmfm.utils.tools import pshape, time_total_derivative, hutch_frob_jac
+from gmfm.utils.tools import pshape, time_total_derivative, hutch_frob_jac, hutch_antisym_frob, hutch_div2
 
 
 def make_gmfm_loss(cfg: Config, apply_fn):
@@ -95,6 +95,46 @@ def make_gmfm_loss(cfg: Config, apply_fn):
                 kin_loss = jnp.mean(jnp.sum(v_t ** 2, axis=-1))
                 aux['kin'] = kin_loss
                 final_loss = final_loss + reg_amt * kin_loss
+
+            if reg_type == 'curl':
+                def v_of_xt(xt_, t_):
+                    return apply_fn(params, xt_, t_, mu)  # (B,D)
+
+                anti_reg = hutch_antisym_frob(v_of_xt, argnum=0)
+
+                anti_per_sample = anti_reg(x_t, t, key=key)   # (B,)
+                curl_loss = jnp.mean(anti_per_sample)         # scalar
+                aux['curl'] = curl_loss
+                final_loss = final_loss + reg_amt * curl_loss
+            if reg_type == 'div':
+                # def v_of_xt(xt_, t_):
+                #     return apply_fn(params, xt_, t_, mu)  # (B,D)
+
+                # # or unbiased=True (uses 2 probes)
+                # div2_reg = hutch_div2(v_of_xt, argnum=0, unbiased=False)
+                # div2_per_sample = div2_reg(
+                #     x_t, t, key=key)               # (B,)
+                # # scalar
+                # div_pen = jnp.mean(div2_per_sample)
+                # aux['div'] = div_pen
+                # final_loss = final_loss + reg_amt * div_pen
+
+                def v_single(xi, ti, mui):
+                    # ensure batch size 1 for all model inputs
+                    xt1 = xi[None, :]                          # (1, D)
+                    # (1, Tdim)  (works for scalar or (1,))
+                    t1 = jnp.asarray(ti).reshape(1, -1)
+                    mu1 = mui[None, :]                         # (1, Mdim)
+                    return apply_fn(params, xt1, t1, mu1)[0]   # (D,)
+
+                # Differentiate wrt xi only
+                J = jax.vmap(jax.jacrev(v_single, argnums=0),
+                             in_axes=(0, 0, 0))(x_t, t, mu)  # (B, D, D)
+
+                div = jnp.trace(J, axis1=1, axis2=2)  # (B,)
+                div_loss = jnp.mean(div**2)
+                aux['div'] = div_loss
+                final_loss = final_loss + reg_amt * div_loss
 
             if reg_type == 'traj':
                 key_time, _ = jax.random.split(key, 2)
