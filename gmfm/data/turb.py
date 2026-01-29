@@ -26,8 +26,8 @@ def get_turb_samples(n_samples: int, seed: int = 0, only_vort: bool = True):
     """
     # Reasonable fixed defaults
     W = H = 128
-    T = 300
-    inner_steps = 1
+    T = 256
+    inner_steps = 2
 
     density = 1.0
     viscosity = 1e-3
@@ -53,6 +53,7 @@ def get_turb_samples(n_samples: int, seed: int = 0, only_vort: bool = True):
     dt = cfd.equations.stable_time_step(
         max_velocity, cfl_safety, viscosity, grid)
     dt_frame = dt * inner_steps
+    print('dt', dt, 'Tend', 510 * dt)
 
     step_fn = cfd.funcutils.repeated(
         cfd.equations.semi_implicit_navier_stokes(
@@ -132,7 +133,7 @@ def get_turb_samples(n_samples: int, seed: int = 0, only_vort: bool = True):
     vort = vort[..., None]
 
     if only_vort:
-        vort_np = np.array(jax.device_get(vort))
+        vort_np = np.asarray(jax.device_get(vort))
         return vort_np
 
 

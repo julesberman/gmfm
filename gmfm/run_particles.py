@@ -33,7 +33,7 @@ from hydra.core.config_store import ConfigStore
 from hydra.core.hydra_config import HydraConfig
 
 from gmfm.config.sweep import get_slurm_config, get_sweep
-from gmfm.utils.tools import epoch_time, unique_id, pshape, print_stats, normalize
+from gmfm.utils.tools import epoch_time, unique_id, pshape, print_stats, normalize, hutch_frob_jac
 from gmfm.test.metrics import compute_mean_relerr, compute_wasserstein_time_pot
 from gmfm.data.turb import get_particles, enstrophy_spectral
 
@@ -114,6 +114,7 @@ class ParticleExp:
     reg_kin: float = 0.0
     reg_curl: float = 0.0
     reg_div: float = 0.0
+    reg_grad: float = 0.0
     iters: int = 50_000
     n_samples: int = 25_000
     sigma: float = 0.0
@@ -222,6 +223,7 @@ def run_particles(cfg: ParticleExp):
         lambda_energy=cfg.reg_kin,
         lambda_curl=cfg.reg_curl,
         lambda_div=cfg.reg_div,
+        lambda_grad=cfg.reg_grad,
     )
 
     iters = cfg.iters
@@ -260,7 +262,7 @@ def run_particles(cfg: ParticleExp):
     print(f"computing wasserstein")
 
     w_time = compute_wasserstein_time_pot(
-        data, traj, n_samples=10_000, sub_t=32)
+        data, traj, n_samples=None, sub_t=128)
 
     R.RESULT[f"time_wass_dist"] = w_time
     mean_w_dist = np.mean(w_time)
@@ -322,6 +324,7 @@ def get_loss_fn_rff(
     lambda_energy: float = 0.0,
     lambda_curl: float = 0.0,
     lambda_div: float = 0.0,
+    lambda_grad: float = 0.0
 ):
     """
     Your weak-form loss + optional time-derivative regularization.
@@ -382,6 +385,14 @@ def get_loss_fn_rff(
 
             # Encourage having curl by maximizing E[curl^2]
             final_loss = final_loss + lambda_curl * jnp.mean(curl**2)
+
+        if lambda_grad > 0:
+            def v_of_xt(xt_, t_):
+                return apply_fn(params, xt_, t_, None)  # (B,D)
+            frob_reg = hutch_frob_jac(v_of_xt, argnum=0)
+            frob_per_sample = frob_reg(xt, t, key=key)
+            smooth_pen = jnp.mean(frob_per_sample)  # scalar ≈ E[||J||_F^2]
+            final_loss = final_loss + lambda_grad * smooth_pen
 
         return final_loss
 

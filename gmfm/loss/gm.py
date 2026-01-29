@@ -31,6 +31,12 @@ def make_gmfm_loss(cfg: Config, apply_fn):
     def loss_fn(params, x_t, t, omegas, lhs, mu, xtp1_batch, dt, key):
         final_loss = 0.0
         aux = {}
+        # Keep raw tensors around
+        x_t_raw = x_t                          # (B,W,H,C) or (B,D)
+        B = x_t_raw.shape[0]
+        # () for (B,D) case? actually (D,) then
+        x_shape = x_t_raw.shape[1:]
+        x_t_flat = x_t_raw.reshape(B, -1)      # (B, Dflat)
 
         if not has_mu:
             mu = None
@@ -106,35 +112,30 @@ def make_gmfm_loss(cfg: Config, apply_fn):
                 curl_loss = jnp.mean(anti_per_sample)         # scalar
                 aux['curl'] = curl_loss
                 final_loss = final_loss + reg_amt * curl_loss
+
             if reg_type == 'div':
-                # def v_of_xt(xt_, t_):
-                #     return apply_fn(params, xt_, t_, mu)  # (B,D)
 
-                # # or unbiased=True (uses 2 probes)
-                # div2_reg = hutch_div2(v_of_xt, argnum=0, unbiased=False)
-                # div2_per_sample = div2_reg(
-                #     x_t, t, key=key)               # (B,)
-                # # scalar
-                # div_pen = jnp.mean(div2_per_sample)
-                # aux['div'] = div_pen
-                # final_loss = final_loss + reg_amt * div_pen
+                def v_of_xt(xt_flat, t_):
+                    # xt_flat: (B, Dflat)
+                    B_ = xt_flat.shape[0]
 
-                def v_single(xi, ti, mui):
-                    # ensure batch size 1 for all model inputs
-                    xt1 = xi[None, :]                          # (1, D)
-                    # (1, Tdim)  (works for scalar or (1,))
-                    t1 = jnp.asarray(ti).reshape(1, -1)
-                    mu1 = mui[None, :]                         # (1, Mdim)
-                    return apply_fn(params, xt1, t1, mu1)[0]   # (D,)
+                    # Unflatten for the network if needed
+                    xt_in = xt_flat.reshape(
+                        (B_,) + x_shape)   # (B,W,H,C) or (B,D)
 
-                # Differentiate wrt xi only
-                J = jax.vmap(jax.jacrev(v_single, argnums=0),
-                             in_axes=(0, 0, 0))(x_t, t, mu)  # (B, D, D)
+                    # should be same shape as xt_in
+                    v_out = apply_fn(params, xt_in, t_, mu)
 
-                div = jnp.trace(J, axis1=1, axis2=2)  # (B,)
-                div_loss = jnp.mean(div**2)
-                aux['div'] = div_loss
-                final_loss = final_loss + reg_amt * div_loss
+                    # Flatten output back to (B, Dflat) so hutch_div2's axis=-1 reduction yields (B,)
+                    return v_out.reshape(B_, -1)
+
+                div2_reg = hutch_div2(v_of_xt, argnum=0, unbiased=False)
+
+                div2_per_sample = div2_reg(x_t_flat, t, key=key)   # (B,)
+                div_pen = jnp.mean(div2_per_sample)
+
+                aux['div'] = div_pen
+                final_loss = final_loss + reg_amt * div_pen
 
             if reg_type == 'traj':
                 key_time, _ = jax.random.split(key, 2)

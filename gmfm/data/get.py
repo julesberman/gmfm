@@ -48,7 +48,7 @@ def get_dataset(cfg: Config, key):
         x_data = get_lz9_data(n_samples, t_eval, skey)
     elif problem == "turb":
         x_data = get_turb_samples(n_samples, only_vort=True)
-        x_data = x_data[:, 24:]
+        x_data = x_data[:, :]
     elif problem == "vtwo":
         path = "/home/jmb1174/sc/gmfm/data/vtwo.pkl"
         x_data, mu_data = get_hoam_data(path)

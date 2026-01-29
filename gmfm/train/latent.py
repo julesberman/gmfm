@@ -42,12 +42,12 @@ AE_CONFIG: Dict[str, Any] = dict(
     # Model
     latent_dim=256,           # unused in spatial-latent model, kept for compatibility
     base_channels=32,         # good default for 128x128
-    num_down=3,              # 128 -> 64 -> 32 -> 16
+    num_down=4,              # 128 -> 64 -> 32 -> 16
     dropout=0.05,            # small dropout to prevent trivial memorization
     gn_groups=8,             # GroupNorm groups (must divide channels)
 
     # VAE latent structure
-    beta_kl=0.001,          # β-VAE coefficient (1.0 ~ standard VAE)
+    beta_kl=0.0005,          # β-VAE coefficient (1.0 ~ standard VAE)
     kl_warmup_steps=5000,    # ramp beta from 0 to beta_kl over these steps
     # optional free-nats per latent dim (0.0 disables). Try 0.25 if collapse.
     kl_free_nats=0.0,

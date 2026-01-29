@@ -27,6 +27,7 @@ envgauge/
 .ipynb
 *.ipynb
 *.out
+curly-flow-matching
 ###################
 # PYTHON DEFAULTS #
 ###################
