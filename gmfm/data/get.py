@@ -1,18 +1,17 @@
 
 import jax
 import numpy as np
+from einops import rearrange
 
 import gmfm.io.result as R
 from gmfm.config.config import Config
 from gmfm.data.adv import get_adv_data
+from gmfm.data.hoam import get_hoam_data
 from gmfm.data.lanl import get_lanl_clean
 from gmfm.data.lz9 import get_lz9_data
 from gmfm.data.turb import get_turb_samples
 from gmfm.data.wave import get_wave_random_media
 from gmfm.utils.tools import normalize, print_ndarray, print_stats, pshape
-
-from gmfm.data.hoam import get_hoam_data
-from einops import rearrange
 
 
 def get_dataset(cfg: Config, key):
@@ -50,12 +49,12 @@ def get_dataset(cfg: Config, key):
         x_data = get_turb_samples(n_samples, only_vort=True)
         x_data = x_data[:, :]
     elif problem == "vtwo":
-        path = "/home/jmb1174/sc/gmfm/data/vtwo.pkl"
+        path = "/scratch/jmb1174/data_hoam/sde/vtwo.pkl"
         x_data, mu_data = get_hoam_data(path)
         x_data = rearrange(x_data, 'M T N D -> M N T D')
         x_data = x_data[:, :, ::sub_t]
     elif problem == "vbump":
-        path = "/home/jmb1174/sc/gmfm/data/vbump.pkl"
+        path = "/scratch/jmb1174/data_hoam/sde/vbump.pkl"
         x_data, mu_data = get_hoam_data(path)
         x_data = rearrange(x_data, 'M T N D -> M N T D')
         x_data = x_data[:, :, ::sub_t]

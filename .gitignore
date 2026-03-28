@@ -28,6 +28,9 @@ envgauge/
 *.ipynb
 *.out
 curly-flow-matching
+*.pdf
+gila/
+*.npz
 ###################
 # PYTHON DEFAULTS #
 ###################

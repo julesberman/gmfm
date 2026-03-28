@@ -1,23 +1,25 @@
 import os
+from pathlib import Path
 
 import hydra
 import jax
+import numpy as np
+from hydra.core.hydra_config import HydraConfig
 
 import gmfm.io.result as R
 from gmfm.config.config import Config
 from gmfm.config.setup import setup
 from gmfm.data.dataloader import get_dataloader
 from gmfm.data.get import get_dataset
+from gmfm.io.load import load
 from gmfm.io.save import save_results
 from gmfm.loss.get import get_loss_fn
 from gmfm.loss.rff import get_phi_params
 from gmfm.net.get import get_network
-from gmfm.test.test import run_test
-from gmfm.train.train import train_model
-import numpy as np
 from gmfm.test.metrics import average_metrics
-from gmfm.io.load import load
-from gmfm.train.latent import train_autoencoder, encode_data
+from gmfm.test.test import run_test
+from gmfm.train.latent import encode_data, train_autoencoder
+from gmfm.train.train import train_model
 
 
 @hydra.main(version_base=None, config_name="default")
@@ -66,6 +68,12 @@ def build(cfg: Config):
         _ = train_autoencoder(x_data)
         x_data = encode_data(x_data)
         print('encoded shape:', x_data.shape)
+        if cfg.save_data:
+            output_dir = Path(HydraConfig.get().runtime.output_dir)
+            output_dir.mkdir(exist_ok=True, parents=True)
+            output_path = output_dir / "training_data.npz"
+            np.savez(output_path, x_data=np.asarray(x_data))
+            print(f"Training data saved to {output_path}")
 
     if cfg.data.has_mu:
         lhs_data, moments = [], []

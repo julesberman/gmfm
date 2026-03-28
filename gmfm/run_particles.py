@@ -1,58 +1,34 @@
 from dataclasses import dataclass, field
-from functools import partial
 from typing import Any, List, Union
 
 import hydra
 import jax
 import jax.numpy as jnp
-import numpy as np
-from einops import rearrange
-from hydra.core.config_store import ConfigStore
-from jax import jacrev, jit, vmap
-from tqdm import tqdm
 import matplotlib.pyplot as plt
-import gmfm.io.result as R
-from gmfm.config.config import Config
-from gmfm.config.setup import setup
-from gmfm.data.dataloader import get_dataloader
-from gmfm.data.get import get_dataset
-from gmfm.io.save import save_results
-from gmfm.loss.get import get_loss_fn
-
-from gmfm.net.get import get_network
-from gmfm.test.test import run_test
-from gmfm.train.train import train_model
 import numpy as np
-from gmfm.test.metrics import average_metrics
-from gmfm.io.load import load
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, List, Union
-
-from hydra.core.config_store import ConfigStore
-from hydra.core.hydra_config import HydraConfig
-
-from gmfm.config.sweep import get_slurm_config, get_sweep
-from gmfm.utils.tools import epoch_time, unique_id, pshape, print_stats, normalize, hutch_frob_jac
-from gmfm.test.metrics import compute_mean_relerr, compute_wasserstein_time_pot
-from gmfm.data.turb import get_particles, enstrophy_spectral
-
-from gmfm.config.config import toy_cfg
 from einops import rearrange
+from hydra.core.config_store import ConfigStore
+from jax import jit, vmap
+
+import gmfm.io.result as R
+from gmfm.config.config import get_outpath, toy_cfg
+from gmfm.config.setup import setup
+from gmfm.data.turb import enstrophy_spectral, get_particles
+from gmfm.io.save import save_results
+from gmfm.loss.rff import get_phi_params, rff_grad_dot_v, rff_laplace_phi
 from gmfm.net.mlp import DNN
-from gmfm.train.adam import adam_opt
-
-from gmfm.test.plot import plot_sde
-from gmfm.config.config import Config, get_outpath
-from gmfm.loss.rff import (
-    grad_phi_weights,
-    make_rff_params_jnp,
-    rff_grad_dot_v,
-    rff_laplace_phi,
-    rff_phi,
-    get_phi_params
+from gmfm.test.metrics import (
+    compute_wasserstein_time_pot,
 )
-
+from gmfm.test.plot import plot_sde
+from gmfm.train.adam import adam_opt
+from gmfm.utils.tools import (
+    epoch_time,
+    hutch_frob_jac,
+    normalize,
+    pshape,
+    unique_id,
+)
 
 # Uncomment for multi-run sweep
 SWEEP = {}
@@ -122,6 +98,7 @@ class ParticleExp:
 
     # misc
     dump: bool = True
+    save_data: bool = False
     info: Union[str, None] = None
     name: str = field(
         default_factory=lambda: f"{unique_id(4)}_{epoch_time(2)}")
@@ -170,6 +147,15 @@ def run_particles(cfg: ParticleExp):
     mm, lhs, fixed_omega, sigma_t = get_phi_params(
         toy_cfg, x_data, t_data, dkey)
 
+    if cfg.save_data:
+        outdir = get_outpath()
+        np.savez(
+            f"{outdir}/training_data.npz",
+            data=np.asarray(data),
+            t_data=np.asarray(t_data),
+        )
+        print(f"Training data saved to {outdir}/training_data.npz")
+
     lhs = jnp.asarray(lhs)
     fixed_omega = jnp.asarray(fixed_omega)
     data = jnp.asarray(data)
@@ -211,8 +197,6 @@ def run_particles(cfg: ParticleExp):
 
     # Init
     compute_ent_fn = get_compute_ent(128)
-    tt = jnp.mean(ct)
-    tt, cxt.shape
 
     sigma = cfg.sigma
     loss_fn = get_loss_fn_rff(
@@ -259,14 +243,14 @@ def run_particles(cfg: ParticleExp):
     vorts = np.asarray(vorts)
 
     pshape(traj, data)
-    print(f"computing wasserstein")
+    print("computing wasserstein")
 
     w_time = compute_wasserstein_time_pot(
         data, traj, n_samples=None, sub_t=128)
 
-    R.RESULT[f"time_wass_dist"] = w_time
+    R.RESULT["time_wass_dist"] = w_time
     mean_w_dist = np.mean(w_time)
-    R.RESULT[f"mean_wass_dist"] = mean_w_dist
+    R.RESULT["mean_wass_dist"] = mean_w_dist
     print(f"mean_wass_dist: {mean_w_dist:.3e}")
 
     print("save...")

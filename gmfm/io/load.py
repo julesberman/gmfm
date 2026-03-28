@@ -44,6 +44,33 @@ def load_single(problem, name, out_dir="./results"):
     return cfg, df
 
 
+def load_multi_direct(parent_dir, verbose=True, drop_cols=None):
+    rows, cfgs = [], []
+
+    parent_dir = Path(parent_dir)
+
+    for item in os.listdir(parent_dir):
+        item_path = parent_dir / item
+        if os.path.isdir(item_path) and (
+            item.isdigit() or item.split("_")[-1].isdigit()
+        ):
+            try:
+                row = pd.read_pickle(item_path / "result.pkl")
+                if drop_cols is not None:
+                    for k in drop_cols:
+                        row.pop(k, None)
+
+                rows.append(row)
+                cfg = OmegaConf.load(item_path / ".hydra/config.yaml")
+                cfgs.append(cfg)
+            except Exception as e:
+                if verbose:
+                    print("did not load: ", item_path, "Error:", e)
+
+    df = pd.DataFrame(rows)
+    return cfgs, df
+
+
 def load_multi(problem, name, out_dir="./results", verbose=True, drop_cols=None):
 
     out_dir = Path(out_dir)

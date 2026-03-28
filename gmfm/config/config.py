@@ -104,6 +104,7 @@ class Config:
 
     dataset: str = 'wave'
     dump: bool = True
+    save_data: bool = False
 
     latent: bool = False
     retest: str | None = None

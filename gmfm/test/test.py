@@ -1,4 +1,5 @@
 
+import jax.numpy as jnp
 import numpy as np
 
 import gmfm.io.result as R
@@ -6,9 +7,8 @@ from gmfm.config.config import Config
 from gmfm.test.integrate import sample_model
 from gmfm.test.metrics import compute_metrics
 from gmfm.test.plot import plot_sde, plot_spde
-from gmfm.utils.tools import jax_key_to_np, pshape, unnormalize
 from gmfm.train.latent import decode_data
-import jax.numpy as jnp
+from gmfm.utils.tools import jax_key_to_np, pshape, unnormalize
 
 
 def run_test(cfg: Config, apply_fn, opt_params, x_data, cur_mu, key, label=''):
